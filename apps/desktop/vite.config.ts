@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite'
-import { svelte } from '@sveltejs/vite-plugin-svelte'
+import { sveltekit } from '@sveltejs/kit/vite'
 import tailwindcss from '@tailwindcss/vite'
 
 // Tauri sets this when developing against a physical device on the LAN.
@@ -7,7 +7,7 @@ const host = process.env.TAURI_DEV_HOST
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [svelte(), tailwindcss()],
+  plugins: [tailwindcss(), sveltekit()],
 
   // Tauri shows its own errors; don't let Vite wipe the terminal.
   clearScreen: false,

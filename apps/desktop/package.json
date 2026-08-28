@@ -5,10 +5,10 @@
   "description": "GradeInsite desktop app for instructors - offline-first grade records with LAN sync",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "tauri": "tauri"
   },
   "dependencies": {
@@ -17,6 +17,8 @@
     "@tauri-apps/plugin-sql": "^2"
   },
   "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.70.3",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
     "@tailwindcss/vite": "^4",
     "@tauri-apps/cli": "^2",
