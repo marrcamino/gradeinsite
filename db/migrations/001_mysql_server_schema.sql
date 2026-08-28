@@ -1,133 +1,199 @@
--- phpMyAdmin SQL Dump
--- version 5.2.0
--- https://www.phpmyadmin.net/
+-- GradeInsite — server database (MySQL 8.4)
 --
--- Host: 127.0.0.1
--- Generation Time: Jan 04, 2024 at 04:28 AM
--- Server version: 10.4.27-MariaDB
--- PHP Version: 8.1.12
-
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-START TRANSACTION;
-SET time_zone = "+00:00";
-
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8mb4 */;
-
+-- Lives on the school machine, served to both apps over the local network by
+-- Apache + PHP. The desktop app pushes here when it can reach the server; the
+-- student portal only ever reads from here.
 --
--- Database: `gradeinsite`
+-- Design notes (differences from the 2024 database, and why):
 --
+--   * No per-record tables. 2024 created "rcrd_<recordId>_<instructorId>" at
+--     runtime, so finding one student's grades meant scanning every table in
+--     the database. Here a class record is a row, and who is in it is a row in
+--     `enrollments`.
+--   * A student exists once. 2024 copied name, program and year into every
+--     per-record table.
+--   * Fixed-shape data is columns; only variable-length data is JSON. The
+--     weights are a known set, so they are DECIMAL columns that SQL can sum and
+--     validate. The raw score cells are a list whose length depends on how many
+--     quizzes the instructor gave, so they stay JSON in `period_grades`.
+--   * `fn` is gone. In 2024 it meant "Final" in one table and "First Name" in
+--     another. Columns are spelled out here.
+--   * Passwords are hashes, never plaintext (PHP password_hash(), bcrypt).
 
--- --------------------------------------------------------
+CREATE DATABASE IF NOT EXISTS `gradeinsite`
+  DEFAULT CHARACTER SET utf8mb4
+  DEFAULT COLLATE utf8mb4_unicode_ci;
 
---
--- Table structure for table `instructors`
---
+USE `gradeinsite`;
+
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS `period_grades`;
+DROP TABLE IF EXISTS `enrollments`;
+DROP TABLE IF EXISTS `class_records`;
+DROP TABLE IF EXISTS `students`;
+DROP TABLE IF EXISTS `instructors`;
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- ---------------------------------------------------------------------------
+-- People
+-- ---------------------------------------------------------------------------
 
 CREATE TABLE `instructors` (
-  `id` int(11) NOT NULL,
-  `usname` varchar(100) NOT NULL,
-  `pass` varchar(60) NOT NULL,
-  `ln` varchar(50) NOT NULL,
-  `fn` varchar(50) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `records_list`
---
-
-CREATE TABLE `records_list` (
-  `id` int(11) NOT NULL,
-  `instructor_id` int(11) NOT NULL,
-  `program` varchar(50) NOT NULL,
-  `yearLevel` varchar(2) NOT NULL,
-  `courseCode` varchar(50) NOT NULL,
-  `courseName` varchar(50) NOT NULL,
-  `gradingTerm` int(50) NOT NULL,
-  `gradingStart` int(50) NOT NULL,
-  `gradingEnd` int(50) NOT NULL,
-  `schedule` varchar(50) DEFAULT NULL,
-  `instructor` varchar(50) DEFAULT NULL,
-  `pdValues` varchar(50) NOT NULL,
-  `gcValues` varchar(50) NOT NULL,
-  `sheetnum` varchar(50) NOT NULL,
-  `dateCreated` varchar(50) NOT NULL,
-  `lastModified` varchar(50) NOT NULL,
-  `pl` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  `pm` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  `mt` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  `pf` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  `fn` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `students`
---
+  `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `username`      VARCHAR(60)  NOT NULL,
+  `password_hash` CHAR(60)     NOT NULL COMMENT 'password_hash(), bcrypt',
+  `last_name`     VARCHAR(60)  NOT NULL,
+  `first_name`    VARCHAR(60)  NOT NULL,
+  `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                        ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_instructors_username` (`username`)
+) ENGINE=InnoDB;
 
 CREATE TABLE `students` (
-  `id` int(11) NOT NULL,
-  `stid` varchar(50) NOT NULL,
-  `ln` varchar(50) NOT NULL,
-  `fn` varchar(50) NOT NULL,
-  `mi` varchar(50) DEFAULT NULL,
-  `pg` varchar(50) NOT NULL,
-  `ct` varchar(50) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  `id`             INT UNSIGNED     NOT NULL AUTO_INCREMENT,
+  `student_no`     VARCHAR(30)      NOT NULL COMMENT 'school ID number; the portal login name',
+  `last_name`      VARCHAR(60)      NOT NULL,
+  `first_name`     VARCHAR(60)      NOT NULL,
+  `middle_initial` VARCHAR(5)       DEFAULT NULL,
+  `program`        VARCHAR(30)      NOT NULL,
+  `year_level`     TINYINT UNSIGNED DEFAULT NULL,
+  `contact`        VARCHAR(30)      DEFAULT NULL,
+  `password_hash`  CHAR(60)         DEFAULT NULL COMMENT 'portal login; NULL until the student first sets one',
+  `created_at`     TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`     TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                             ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_students_student_no` (`student_no`),
+  KEY `ix_students_name` (`last_name`, `first_name`)
+) ENGINE=InnoDB;
 
---
--- Indexes for dumped tables
---
+-- ---------------------------------------------------------------------------
+-- Class records
+-- ---------------------------------------------------------------------------
 
---
--- Indexes for table `instructors`
---
-ALTER TABLE `instructors`
-  ADD PRIMARY KEY (`id`);
+CREATE TABLE `class_records` (
+  `id`                INT UNSIGNED      NOT NULL AUTO_INCREMENT,
+  `instructor_id`     INT UNSIGNED      NOT NULL,
+  `local_id`          INT UNSIGNED      DEFAULT NULL
+                      COMMENT 'the row id this record has in the desktop SQLite file; makes sync idempotent',
 
---
--- Indexes for table `records_list`
---
-ALTER TABLE `records_list`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `instructor_id` (`instructor_id`);
+  `program`           VARCHAR(30)       NOT NULL,
+  `year_level`        TINYINT UNSIGNED  NOT NULL,
+  `course_code`       VARCHAR(30)       NOT NULL,
+  `course_name`       VARCHAR(120)      NOT NULL,
+  `term`              TINYINT UNSIGNED  NOT NULL COMMENT '1 = first semester, 2 = second',
+  `school_year_start` SMALLINT UNSIGNED NOT NULL,
+  `school_year_end`   SMALLINT UNSIGNED NOT NULL,
+  `schedule`          VARCHAR(60)       DEFAULT NULL,
+  `instructor_name`   VARCHAR(120)      DEFAULT NULL
+                      COMMENT 'name printed on the sheet; may differ from the account holder',
 
---
--- Indexes for table `students`
---
-ALTER TABLE `students`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `stid` (`stid`);
+  -- Grade components (2024: gcValues). How much each grading period is worth.
+  -- A weight of 0 means the school does not use that period, and the desktop
+  -- app hides its sheet. The five together should total 100.
+  `weight_prelim`     DECIMAL(5,2)      NOT NULL DEFAULT 0.00,
+  `weight_premid`     DECIMAL(5,2)      NOT NULL DEFAULT 0.00,
+  `weight_midterm`    DECIMAL(5,2)      NOT NULL DEFAULT 0.00,
+  `weight_prefinal`   DECIMAL(5,2)      NOT NULL DEFAULT 0.00,
+  `weight_final`      DECIMAL(5,2)      NOT NULL DEFAULT 0.00,
 
---
--- AUTO_INCREMENT for dumped tables
---
+  -- Percentage distribution (2024: pdValues). Within one period, how much each
+  -- kind of work is worth. These six should also total 100.
+  `pct_quizzes`       DECIMAL(5,2)      NOT NULL DEFAULT 0.00 COMMENT 'quizzes and exercises',
+  `pct_attendance`    DECIMAL(5,2)      NOT NULL DEFAULT 0.00,
+  `pct_assignment`    DECIMAL(5,2)      NOT NULL DEFAULT 0.00,
+  `pct_course_output` DECIMAL(5,2)      NOT NULL DEFAULT 0.00 COMMENT 'course output / project',
+  `pct_oral`          DECIMAL(5,2)      NOT NULL DEFAULT 0.00 COMMENT 'oral participation',
+  `pct_major_exam`    DECIMAL(5,2)      NOT NULL DEFAULT 0.00,
 
---
--- AUTO_INCREMENT for table `instructors`
---
-ALTER TABLE `instructors`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  `created_at`        TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`        TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                                 ON UPDATE CURRENT_TIMESTAMP,
+  `synced_at`         TIMESTAMP         NULL DEFAULT NULL
+                      COMMENT 'when the desktop app last pushed this record',
 
---
--- AUTO_INCREMENT for table `records_list`
---
-ALTER TABLE `records_list`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_class_records_origin` (`instructor_id`, `local_id`),
+  KEY `ix_class_records_course` (`course_code`, `school_year_start`, `term`),
+  CONSTRAINT `fk_class_records_instructor`
+    FOREIGN KEY (`instructor_id`) REFERENCES `instructors` (`id`)
+    ON DELETE CASCADE,
+  CONSTRAINT `ck_class_records_period_weights`
+    CHECK (`weight_prelim` + `weight_premid` + `weight_midterm`
+         + `weight_prefinal` + `weight_final` IN (0, 100)),
+  CONSTRAINT `ck_class_records_component_weights`
+    CHECK (`pct_quizzes` + `pct_attendance` + `pct_assignment`
+         + `pct_course_output` + `pct_oral` + `pct_major_exam` IN (0, 100))
+) ENGINE=InnoDB;
 
---
--- AUTO_INCREMENT for table `students`
---
-ALTER TABLE `students`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
-COMMIT;
+-- Which students are in which class record. This is the table that makes the
+-- student portal a single query instead of a scan.
+CREATE TABLE `enrollments` (
+  `id`              INT UNSIGNED      NOT NULL AUTO_INCREMENT,
+  `class_record_id` INT UNSIGNED      NOT NULL,
+  `student_id`      INT UNSIGNED      NOT NULL,
+  `row_order`       SMALLINT UNSIGNED DEFAULT NULL
+                    COMMENT 'position in the sheet, so print order survives a sync',
+  `final_grade`     DECIMAL(5,2)      DEFAULT NULL
+                    COMMENT 'computed by the desktop app from the period grades and weights; the portal displays it, never recomputes it',
+  `remarks`         VARCHAR(20)       DEFAULT NULL COMMENT 'e.g. PASSED, FAILED, INC',
+  `created_at`      TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`      TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                               ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_enrollments` (`class_record_id`, `student_id`),
+  KEY `ix_enrollments_student` (`student_id`),
+  CONSTRAINT `fk_enrollments_class_record`
+    FOREIGN KEY (`class_record_id`) REFERENCES `class_records` (`id`)
+    ON DELETE CASCADE,
+  CONSTRAINT `fk_enrollments_student`
+    FOREIGN KEY (`student_id`) REFERENCES `students` (`id`)
+    ON DELETE CASCADE
+) ENGINE=InnoDB;
 
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+-- One row per student per grading period.
+--
+-- `grade` is the computed period grade the portal shows. `raw_scores` keeps the
+-- individual marks behind it, as JSON because the number of quizzes and
+-- assignments is up to the instructor:
+--
+--   {"qe":[10,8,null],"at":[1,1,0],"as":[20],"co":95,"op":88,"me":47}
+--
+-- qe / at / as are lists (quizzes and exercises, attendance, assignments);
+-- co / op / me are single marks (course output, oral participation, major exam).
+CREATE TABLE `period_grades` (
+  `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `enrollment_id` INT UNSIGNED NOT NULL,
+  `period`        ENUM('prelim','premid','midterm','prefinal','final') NOT NULL,
+  `grade`         DECIMAL(5,2) DEFAULT NULL COMMENT 'NULL = not graded yet',
+  `is_incomplete` TINYINT(1)   NOT NULL DEFAULT 0
+                  COMMENT 'the 2024 "<period>lack" flag: some scores are still missing',
+  `raw_scores`    JSON         DEFAULT NULL,
+  `updated_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                        ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_period_grades` (`enrollment_id`, `period`),
+  CONSTRAINT `fk_period_grades_enrollment`
+    FOREIGN KEY (`enrollment_id`) REFERENCES `enrollments` (`id`)
+    ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------------
+-- The whole student portal, in one query
+-- ---------------------------------------------------------------------------
+--
+--   SELECT c.course_code, c.course_name, c.term,
+--          c.school_year_start, c.school_year_end,
+--          e.final_grade, e.remarks,
+--          p.period, p.grade, p.is_incomplete
+--     FROM enrollments   e
+--     JOIN class_records c ON c.id = e.class_record_id
+--     LEFT JOIN period_grades p ON p.enrollment_id = e.id
+--    WHERE e.student_id = ?
+--    ORDER BY c.school_year_start DESC, c.term, c.course_code,
+--             FIELD(p.period,'prelim','premid','midterm','prefinal','final');
+--
+-- The student id comes from the PHP session, never from the request, so a
+-- student cannot fetch someone else's grades by changing a parameter.
