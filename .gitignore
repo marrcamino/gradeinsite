@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.svelte-kit/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# Environment / secrets
+.env
+.env.local
+apps/api/config.local.php
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local database artifacts
+*.sqlite
+*.sqlite3
+*.db

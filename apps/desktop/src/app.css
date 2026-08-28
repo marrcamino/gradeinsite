@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+
+/* Design tokens for GradeInsite. Extend as the UI takes shape. */
+@theme {
+  --font-sans: 'Segoe UI', system-ui, sans-serif;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
