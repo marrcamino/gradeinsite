@@ -239,6 +239,14 @@
     @apply border-b border-border px-3 py-2 align-middle;
   }
 
+  .table thead {
+    @apply bg-accent;
+  }
+
+  .table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
   .table tbody tr:hover {
     @apply bg-muted/60;
   }
