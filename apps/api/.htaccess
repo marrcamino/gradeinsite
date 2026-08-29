@@ -1,5 +1,5 @@
 # Never serve the local config or any PHP include as plain text.
-<FilesMatch "^(config\.local\.php|config\.sample\.php|db\.php)$">
+<FilesMatch "^(config\.local\.php|config\.sample\.php|db\.php|auth\.php)$">
     Require all denied
 </FilesMatch>
 
