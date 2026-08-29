@@ -2,6 +2,20 @@
 
 @theme {
   --font-sans: 'Segoe UI', system-ui, sans-serif;
+
+  /* Same brand palette as the desktop app, so a student and an instructor are
+     looking at one product. Keep the two files in step. */
+  --color-brand: #a85f0c;
+  --color-brand-50: #fdf7f0;
+  --color-brand-100: #f7e8d6;
+  --color-brand-200: #ecd0ae;
+  --color-brand-300: #dcae7c;
+  --color-brand-400: #c8863f;
+  --color-brand-500: #a85f0c;
+  --color-brand-600: #8d4f09;
+  --color-brand-700: #713e07;
+  --color-brand-800: #5a3106;
+  --color-brand-900: #3f2204;
 }
 
 html,
