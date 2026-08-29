@@ -1,12 +1,253 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
-/* Design tokens for GradeInsite. Extend as the UI takes shape. */
-@theme {
-  --font-sans: 'Segoe UI', system-ui, sans-serif;
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.216 0.006 56);
+
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.558 0.126 60.4);
+  --primary-hover: oklch(0.491 0.111 60.4);
+  --primary-foreground: oklch(1 0 0);
+
+  --secondary: oklch(0.97 0.001 106.4);
+  --secondary-foreground: oklch(0.268 0.007 34.3);
+
+  --muted: oklch(0.97 0.001 106.4);
+  --muted-foreground: oklch(0.553 0.013 58.1);
+
+  --accent: oklch(0.979 0.011 71.9);
+  --accent-foreground: oklch(0.358 0.079 60.2);
+
+  --destructive: oklch(0.577 0.245 27.3);
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.527 0.154 150.1);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.554 0.135 66.4);
+  --warning-foreground: oklch(1 0 0);
+
+  --border: oklch(0.923 0.003 48.7);
+  --input: oklch(0.869 0.005 56.4);
+  --ring: var(--primary);
+
+  --radius: 0.5rem;
 }
 
-html,
-body,
-#app {
-  height: 100%;
+@theme inline {
+  --font-sans: "Segoe UI", system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body,
+  #app {
+    height: 100%;
+  }
+
+  html {
+    @apply font-sans;
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    @apply ring-[3px] ring-ring/40 outline-none;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex shrink-0 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary-hover;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground;
+  }
+
+  .btn-outline {
+    @apply border border-input bg-background text-foreground hover:border-primary hover:bg-accent hover:text-accent-foreground;
+  }
+
+  .btn-ghost {
+    @apply text-foreground hover:bg-accent hover:text-accent-foreground;
+  }
+
+  .btn-destructive {
+    @apply bg-destructive text-destructive-foreground hover:bg-destructive/90;
+  }
+
+  .btn-sm {
+    @apply gap-1.5 rounded-sm px-2.5 py-1.5 text-xs;
+  }
+
+  .btn-lg {
+    @apply px-4 py-2.5 text-base;
+  }
+
+  .btn-icon {
+    @apply size-9 p-0;
+  }
+
+  .input,
+  .select,
+  .textarea {
+    @apply w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-[3px] focus:ring-ring/25 focus:outline-none disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-70;
+  }
+
+  .textarea {
+    @apply min-h-20 resize-y;
+  }
+
+  .input-sm {
+    @apply px-2 py-1.5 text-xs;
+  }
+
+  .input-invalid {
+    @apply border-destructive focus:border-destructive focus:ring-destructive/25;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-foreground;
+  }
+
+  .hint {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .field-error {
+    @apply text-xs text-destructive;
+  }
+
+  .card {
+    @apply rounded-lg border border-border bg-card text-card-foreground;
+  }
+
+  .card-header {
+    @apply flex flex-col gap-1 border-b border-border px-4 py-3;
+  }
+
+  .card-title {
+    @apply text-sm font-semibold tracking-tight;
+  }
+
+  .card-body {
+    @apply p-4;
+  }
+
+  .card-footer {
+    @apply flex items-center gap-2 border-t border-border px-4 py-3;
+  }
+
+  .alert {
+    @apply rounded-md border px-3 py-2 text-xs;
+  }
+
+  .alert-error {
+    @apply border-destructive/30 bg-destructive/10 text-destructive;
+  }
+
+  .alert-warning {
+    @apply border-warning/30 bg-warning/10 text-warning;
+  }
+
+  .alert-success {
+    @apply border-success/30 bg-success/10 text-success;
+  }
+
+  .alert-info {
+    @apply border-accent-foreground/25 bg-accent text-accent-foreground;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-medium;
+  }
+
+  .badge-neutral {
+    @apply bg-muted text-muted-foreground;
+  }
+
+  .badge-accent {
+    @apply bg-accent text-accent-foreground;
+  }
+
+  .badge-success {
+    @apply bg-success/15 text-success;
+  }
+
+  .badge-warning {
+    @apply bg-warning/15 text-warning;
+  }
+
+  .badge-danger {
+    @apply bg-destructive/15 text-destructive;
+  }
+
+  /* Grade sheets are the main screen, so the table gets a class of its own. */
+  .table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  .table th {
+    @apply border-b border-border px-3 py-2 text-left text-xs font-semibold text-muted-foreground;
+  }
+
+  .table td {
+    @apply border-b border-border px-3 py-2 align-middle;
+  }
+
+  .table tbody tr:hover {
+    @apply bg-muted/60;
+  }
+
+  .link {
+    @apply text-primary underline underline-offset-2 hover:text-primary-hover;
+  }
+
+  .muted {
+    @apply text-muted-foreground;
+  }
 }
