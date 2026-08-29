@@ -19,6 +19,15 @@
 --   * `fn` is gone. In 2024 it meant "Final" in one table and "First Name" in
 --     another. Columns are spelled out here.
 --   * Passwords are hashes, never plaintext (PHP password_hash(), bcrypt).
+--
+-- Every table the desktop pushes has a natural unique key, so re-sending a row
+-- after a dropped connection updates it instead of duplicating it. That is what
+-- makes the sync safe to retry:
+--
+--   students       student_no
+--   class_records  (instructor_id, local_id)
+--   enrollments    (class_record_id, student_id)
+--   period_grades  (enrollment_id, period)
 
 CREATE DATABASE IF NOT EXISTS `gradeinsite`
   DEFAULT CHARACTER SET utf8mb4
@@ -33,6 +42,22 @@ DROP TABLE IF EXISTS `class_records`;
 DROP TABLE IF EXISTS `students`;
 DROP TABLE IF EXISTS `instructors`;
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- ---------------------------------------------------------------------------
+-- Migration bookkeeping
+-- ---------------------------------------------------------------------------
+--
+-- The desktop gets tauri-plugin-sql's migration runner; the server has nothing,
+-- because the stack is plain PHP by design. This table is the substitute: it
+-- records which files have been applied to this database, so the next person to
+-- open MySQL Workbench can tell without guessing. It is deliberately not part
+-- of the DROP list above.
+
+CREATE TABLE IF NOT EXISTS `schema_migrations` (
+  `filename`   VARCHAR(120) NOT NULL,
+  `applied_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`filename`)
+) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
 -- People
@@ -66,8 +91,16 @@ CREATE TABLE `students` (
                                              ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_students_student_no` (`student_no`),
-  KEY `ix_students_name` (`last_name`, `first_name`)
+  KEY `ix_students_name` (`last_name`, `first_name`),
+  KEY `ix_students_class` (`program`, `year_level`),
+  CONSTRAINT `ck_students_year_level`
+    CHECK (`year_level` IS NULL OR `year_level` BETWEEN 1 AND 6)
 ) ENGINE=InnoDB;
+
+-- `password_hash` is the one column on a mirrored table that the server owns:
+-- the desktop has no copy of it and never sends it. A sync that updates a
+-- student must therefore name its columns rather than replacing the row, or it
+-- would log the student out of the portal.
 
 -- ---------------------------------------------------------------------------
 -- Class records
@@ -108,6 +141,18 @@ CREATE TABLE `class_records` (
   `pct_oral`          DECIMAL(5,2)      NOT NULL DEFAULT 0.00 COMMENT 'oral participation',
   `pct_major_exam`    DECIMAL(5,2)      NOT NULL DEFAULT 0.00,
 
+  -- The shape of the sheet, recovering what 2024 kept in `sheetnum`: how many
+  -- score columns each period has and what each one is worth. Without it, a
+  -- record with no scores entered yet has no columns to draw, and an instructor
+  -- who set up ten quizzes in advance would lose that on the next open.
+  --
+  --   {"prelim":{"qe":[20,20,15],"at":[1,1],"as":[10],"co":100,"op":50,"me":60}}
+  --
+  -- Each list holds the perfect score of one column, so its length is the
+  -- column count. Course output, oral participation and the major exam are
+  -- single columns, so they are single numbers rather than lists.
+  `sheet_layout`      JSON              DEFAULT NULL,
+
   `created_at`        TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`        TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP
                                                  ON UPDATE CURRENT_TIMESTAMP,
@@ -120,6 +165,12 @@ CREATE TABLE `class_records` (
   CONSTRAINT `fk_class_records_instructor`
     FOREIGN KEY (`instructor_id`) REFERENCES `instructors` (`id`)
     ON DELETE CASCADE,
+  CONSTRAINT `ck_class_records_term`
+    CHECK (`term` IN (1, 2)),
+  CONSTRAINT `ck_class_records_year_level`
+    CHECK (`year_level` BETWEEN 1 AND 6),
+  CONSTRAINT `ck_class_records_school_year`
+    CHECK (`school_year_end` = `school_year_start` + 1),
   CONSTRAINT `ck_class_records_period_weights`
     CHECK (`weight_prelim` + `weight_premid` + `weight_midterm`
          + `weight_prefinal` + `weight_final` IN (0, 100)),
@@ -138,7 +189,7 @@ CREATE TABLE `enrollments` (
                     COMMENT 'position in the sheet, so print order survives a sync',
   `final_grade`     DECIMAL(5,2)      DEFAULT NULL
                     COMMENT 'computed by the desktop app from the period grades and weights; the portal displays it, never recomputes it',
-  `remarks`         VARCHAR(20)       DEFAULT NULL COMMENT 'e.g. PASSED, FAILED, INC',
+  `remarks`         ENUM('PASSED','FAILED','INC','DROPPED') DEFAULT NULL,
   `created_at`      TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`      TIMESTAMP         NOT NULL DEFAULT CURRENT_TIMESTAMP
                                                ON UPDATE CURRENT_TIMESTAMP,
@@ -150,7 +201,9 @@ CREATE TABLE `enrollments` (
     ON DELETE CASCADE,
   CONSTRAINT `fk_enrollments_student`
     FOREIGN KEY (`student_id`) REFERENCES `students` (`id`)
-    ON DELETE CASCADE
+    ON DELETE CASCADE,
+  CONSTRAINT `ck_enrollments_final_grade`
+    CHECK (`final_grade` IS NULL OR `final_grade` BETWEEN 0 AND 100)
 ) ENGINE=InnoDB;
 
 -- One row per student per grading period.
@@ -163,6 +216,10 @@ CREATE TABLE `enrollments` (
 --
 -- qe / at / as are lists (quizzes and exercises, attendance, assignments);
 -- co / op / me are single marks (course output, oral participation, major exam).
+-- The lists line up position for position with the ones in the matching period
+-- of `class_records.sheet_layout`, which holds the perfect scores. A null cell
+-- is a mark not entered yet, which is what `is_incomplete` summarises for the
+-- portal.
 CREATE TABLE `period_grades` (
   `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `enrollment_id` INT UNSIGNED NOT NULL,
@@ -171,13 +228,18 @@ CREATE TABLE `period_grades` (
   `is_incomplete` TINYINT(1)   NOT NULL DEFAULT 0
                   COMMENT 'the 2024 "<period>lack" flag: some scores are still missing',
   `raw_scores`    JSON         DEFAULT NULL,
+  `created_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
                                         ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_period_grades` (`enrollment_id`, `period`),
   CONSTRAINT `fk_period_grades_enrollment`
     FOREIGN KEY (`enrollment_id`) REFERENCES `enrollments` (`id`)
-    ON DELETE CASCADE
+    ON DELETE CASCADE,
+  CONSTRAINT `ck_period_grades_grade`
+    CHECK (`grade` IS NULL OR `grade` BETWEEN 0 AND 100),
+  CONSTRAINT `ck_period_grades_incomplete`
+    CHECK (`is_incomplete` IN (0, 1))
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------------
@@ -192,8 +254,14 @@ CREATE TABLE `period_grades` (
 --     JOIN class_records c ON c.id = e.class_record_id
 --     LEFT JOIN period_grades p ON p.enrollment_id = e.id
 --    WHERE e.student_id = ?
---    ORDER BY c.school_year_start DESC, c.term, c.course_code,
---             FIELD(p.period,'prelim','premid','midterm','prefinal','final');
+--    ORDER BY c.school_year_start DESC, c.term, c.course_code, p.period;
+--
+-- `p.period` sorts correctly on its own: a MySQL ENUM sorts by the order its
+-- values were declared, which here is prelim through final.
 --
 -- The student id comes from the PHP session, never from the request, so a
 -- student cannot fetch someone else's grades by changing a parameter.
+
+INSERT INTO `schema_migrations` (`filename`)
+  VALUES ('001_mysql_server_schema.sql')
+  ON DUPLICATE KEY UPDATE `applied_at` = CURRENT_TIMESTAMP;
