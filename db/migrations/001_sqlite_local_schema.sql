@@ -73,8 +73,8 @@ CREATE TABLE IF NOT EXISTS "students" (
   "program"        TEXT NOT NULL,
   "year_level"     INTEGER,
   "contact"        TEXT,
-  "created_at"     TEXT NOT NULL DEFAULT (datetime('now')),
-  "updated_at"     TEXT NOT NULL DEFAULT (datetime('now')),
+  "created_at"     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')),
+  "updated_at"     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')),
   CHECK ("year_level" IS NULL OR "year_level" BETWEEN 1 AND 6)
 );
 
@@ -116,8 +116,8 @@ CREATE TABLE IF NOT EXISTS "class_records" (
   --   {"prelim":{"qe":[20,20,15],"at":[1,1],"as":[10],"co":100,"op":50,"me":60}}
   "sheet_layout"      TEXT CHECK ("sheet_layout" IS NULL OR json_valid("sheet_layout")),
 
-  "created_at"        TEXT NOT NULL DEFAULT (datetime('now')),
-  "updated_at"        TEXT NOT NULL DEFAULT (datetime('now')),
+  "created_at"        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')),
+  "updated_at"        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')),
   "synced_at"         TEXT,
 
   CHECK ("term" IN (1, 2)),
@@ -137,8 +137,8 @@ CREATE TABLE IF NOT EXISTS "enrollments" (
   "row_order"       INTEGER,
   "final_grade"     REAL,
   "remarks"         TEXT,
-  "created_at"      TEXT NOT NULL DEFAULT (datetime('now')),
-  "updated_at"      TEXT NOT NULL DEFAULT (datetime('now')),
+  "created_at"      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')),
+  "updated_at"      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')),
   UNIQUE ("class_record_id", "student_id"),
   CHECK ("final_grade" IS NULL OR "final_grade" BETWEEN 0 AND 100),
   -- The server holds this as an ENUM, which matches case-insensitively and
@@ -163,8 +163,8 @@ CREATE TABLE IF NOT EXISTS "period_grades" (
   "grade"         REAL,
   "is_incomplete" INTEGER NOT NULL DEFAULT 0 CHECK ("is_incomplete" IN (0, 1)),
   "raw_scores"    TEXT CHECK ("raw_scores" IS NULL OR json_valid("raw_scores")),
-  "created_at"    TEXT NOT NULL DEFAULT (datetime('now')),
-  "updated_at"    TEXT NOT NULL DEFAULT (datetime('now')),
+  "created_at"    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')),
+  "updated_at"    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')),
   UNIQUE ("enrollment_id", "period"),
   CHECK ("grade" IS NULL OR "grade" BETWEEN 0 AND 100)
 );
@@ -188,7 +188,7 @@ CREATE TABLE IF NOT EXISTS "sync_outbox" (
   "entity_id"   INTEGER NOT NULL,
   "operation"   TEXT NOT NULL CHECK ("operation" IN ('insert','update','delete')),
   "payload"     TEXT NOT NULL CHECK (json_valid("payload")),
-  "queued_at"   TEXT NOT NULL DEFAULT (datetime('now')),
+  "queued_at"   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')),
   "attempts"    INTEGER NOT NULL DEFAULT 0,
   "last_error"  TEXT
 );
@@ -200,34 +200,233 @@ CREATE INDEX IF NOT EXISTS "ix_enrollments_student" ON "enrollments"   ("student
 CREATE INDEX IF NOT EXISTS "ix_period_grades_enr"   ON "period_grades" ("enrollment_id");
 CREATE INDEX IF NOT EXISTS "ix_outbox_queued"       ON "sync_outbox"   ("queued_at");
 
--- Keep `updated_at` honest without the app having to remember. The server gets
--- this for free from ON UPDATE CURRENT_TIMESTAMP; SQLite needs triggers.
-CREATE TRIGGER IF NOT EXISTS "tg_students_updated"
+-- `updated_at` is set by the app, not by a trigger.
+--
+-- A trigger would have to UPDATE the row it was fired by, and SQLite runs that
+-- nested write through every other AFTER UPDATE trigger on the table. The outbox
+-- triggers below would then see it as a second edit and queue the change twice,
+-- with no condition able to tell the two apart. So every UPDATE the app issues
+-- names `updated_at` itself; see apps/desktop/src/lib/db/.
+
+-- ---------------------------------------------------------------------------
+-- Filling the outbox
+-- ---------------------------------------------------------------------------
+--
+-- The queue is written by the database, not by the app. tauri-plugin-sql hands
+-- out pooled connections, so a BEGIN issued from the frontend can land on a
+-- different connection than the COMMIT: there is no way to write a row and its
+-- queue entry in one transaction from up there. A trigger runs inside the
+-- statement that fired it, so the two can never come apart, and no screen can
+-- forget to enqueue what it just changed.
+--
+-- The payloads are the request bodies apps/api/sync-push.php expects. A class
+-- record is named by its local row id and a student by their student number,
+-- because those are the only identifiers a laptop has for a row the server has
+-- never seen.
+--
+-- Two things the guards are for:
+--
+--   * `OLD."server_id" IS NEW."server_id"`, and `synced_at` too on a class
+--     record — the sync writes those back itself after a successful push, and
+--     that write must not queue another one. Every other UPDATE is a real edit.
+--   * `EXISTS (...)` on the deletes — deleting a class record cascades to its
+--     enrollments and their grades, and the server cascades too, so queueing
+--     each cascaded child would be noise the server would reject. Only a
+--     genuine single delete, whose parents are both still there, is queued.
+
+CREATE TRIGGER IF NOT EXISTS "tg_students_outbox_insert"
+AFTER INSERT ON "students" FOR EACH ROW
+BEGIN
+  INSERT INTO "sync_outbox" ("entity", "entity_id", "operation", "payload")
+  VALUES ('student', NEW."id", 'insert', json_object(
+    'student_no',     NEW."student_no",
+    'last_name',      NEW."last_name",
+    'first_name',     NEW."first_name",
+    'middle_initial', NEW."middle_initial",
+    'program',        NEW."program",
+    'year_level',     NEW."year_level",
+    'contact',        NEW."contact"
+  ));
+END;
+
+CREATE TRIGGER IF NOT EXISTS "tg_students_outbox_update"
 AFTER UPDATE ON "students" FOR EACH ROW
-WHEN OLD."updated_at" = NEW."updated_at"
+WHEN OLD."server_id" IS NEW."server_id"
 BEGIN
-  UPDATE "students" SET "updated_at" = datetime('now') WHERE "id" = OLD."id";
+  INSERT INTO "sync_outbox" ("entity", "entity_id", "operation", "payload")
+  VALUES ('student', NEW."id", 'update', json_object(
+    'student_no',     NEW."student_no",
+    'last_name',      NEW."last_name",
+    'first_name',     NEW."first_name",
+    'middle_initial', NEW."middle_initial",
+    'program',        NEW."program",
+    'year_level',     NEW."year_level",
+    'contact',        NEW."contact"
+  ));
 END;
 
-CREATE TRIGGER IF NOT EXISTS "tg_class_records_updated"
+-- A student removed on the laptop leaves this instructor's records. The server
+-- keeps the student row, which is shared with other instructors and carries the
+-- portal login, and drops the enrollments instead.
+CREATE TRIGGER IF NOT EXISTS "tg_students_outbox_delete"
+AFTER DELETE ON "students" FOR EACH ROW
+BEGIN
+  INSERT INTO "sync_outbox" ("entity", "entity_id", "operation", "payload")
+  VALUES ('student', OLD."id", 'delete', json_object('student_no', OLD."student_no"));
+END;
+
+CREATE TRIGGER IF NOT EXISTS "tg_class_records_outbox_insert"
+AFTER INSERT ON "class_records" FOR EACH ROW
+BEGIN
+  INSERT INTO "sync_outbox" ("entity", "entity_id", "operation", "payload")
+  VALUES ('class_record', NEW."id", 'insert', json_object(
+    'local_id',          NEW."id",
+    'program',           NEW."program",
+    'year_level',        NEW."year_level",
+    'course_code',       NEW."course_code",
+    'course_name',       NEW."course_name",
+    'term',              NEW."term",
+    'school_year_start', NEW."school_year_start",
+    'school_year_end',   NEW."school_year_end",
+    'schedule',          NEW."schedule",
+    'instructor_name',   NEW."instructor_name",
+    'weight_prelim',     NEW."weight_prelim",
+    'weight_premid',     NEW."weight_premid",
+    'weight_midterm',    NEW."weight_midterm",
+    'weight_prefinal',   NEW."weight_prefinal",
+    'weight_final',      NEW."weight_final",
+    'pct_quizzes',       NEW."pct_quizzes",
+    'pct_attendance',    NEW."pct_attendance",
+    'pct_assignment',    NEW."pct_assignment",
+    'pct_course_output', NEW."pct_course_output",
+    'pct_oral',          NEW."pct_oral",
+    'pct_major_exam',    NEW."pct_major_exam",
+    'sheet_layout',      json(NEW."sheet_layout")
+  ));
+END;
+
+CREATE TRIGGER IF NOT EXISTS "tg_class_records_outbox_update"
 AFTER UPDATE ON "class_records" FOR EACH ROW
-WHEN OLD."updated_at" = NEW."updated_at"
+WHEN OLD."server_id" IS NEW."server_id" AND OLD."synced_at" IS NEW."synced_at"
 BEGIN
-  UPDATE "class_records" SET "updated_at" = datetime('now') WHERE "id" = OLD."id";
+  INSERT INTO "sync_outbox" ("entity", "entity_id", "operation", "payload")
+  VALUES ('class_record', NEW."id", 'update', json_object(
+    'local_id',          NEW."id",
+    'program',           NEW."program",
+    'year_level',        NEW."year_level",
+    'course_code',       NEW."course_code",
+    'course_name',       NEW."course_name",
+    'term',              NEW."term",
+    'school_year_start', NEW."school_year_start",
+    'school_year_end',   NEW."school_year_end",
+    'schedule',          NEW."schedule",
+    'instructor_name',   NEW."instructor_name",
+    'weight_prelim',     NEW."weight_prelim",
+    'weight_premid',     NEW."weight_premid",
+    'weight_midterm',    NEW."weight_midterm",
+    'weight_prefinal',   NEW."weight_prefinal",
+    'weight_final',      NEW."weight_final",
+    'pct_quizzes',       NEW."pct_quizzes",
+    'pct_attendance',    NEW."pct_attendance",
+    'pct_assignment',    NEW."pct_assignment",
+    'pct_course_output', NEW."pct_course_output",
+    'pct_oral',          NEW."pct_oral",
+    'pct_major_exam',    NEW."pct_major_exam",
+    'sheet_layout',      json(NEW."sheet_layout")
+  ));
 END;
 
-CREATE TRIGGER IF NOT EXISTS "tg_enrollments_updated"
+CREATE TRIGGER IF NOT EXISTS "tg_class_records_outbox_delete"
+AFTER DELETE ON "class_records" FOR EACH ROW
+BEGIN
+  INSERT INTO "sync_outbox" ("entity", "entity_id", "operation", "payload")
+  VALUES ('class_record', OLD."id", 'delete', json_object('local_id', OLD."id"));
+END;
+
+CREATE TRIGGER IF NOT EXISTS "tg_enrollments_outbox_insert"
+AFTER INSERT ON "enrollments" FOR EACH ROW
+BEGIN
+  INSERT INTO "sync_outbox" ("entity", "entity_id", "operation", "payload")
+  VALUES ('enrollment', NEW."id", 'insert', json_object(
+    'class_record_local_id', NEW."class_record_id",
+    'student_no',            (SELECT "student_no" FROM "students" WHERE "id" = NEW."student_id"),
+    'row_order',             NEW."row_order",
+    'final_grade',           NEW."final_grade",
+    'remarks',               NEW."remarks"
+  ));
+END;
+
+CREATE TRIGGER IF NOT EXISTS "tg_enrollments_outbox_update"
 AFTER UPDATE ON "enrollments" FOR EACH ROW
-WHEN OLD."updated_at" = NEW."updated_at"
+WHEN OLD."server_id" IS NEW."server_id"
 BEGIN
-  UPDATE "enrollments" SET "updated_at" = datetime('now') WHERE "id" = OLD."id";
+  INSERT INTO "sync_outbox" ("entity", "entity_id", "operation", "payload")
+  VALUES ('enrollment', NEW."id", 'update', json_object(
+    'class_record_local_id', NEW."class_record_id",
+    'student_no',            (SELECT "student_no" FROM "students" WHERE "id" = NEW."student_id"),
+    'row_order',             NEW."row_order",
+    'final_grade',           NEW."final_grade",
+    'remarks',               NEW."remarks"
+  ));
 END;
 
-CREATE TRIGGER IF NOT EXISTS "tg_period_grades_updated"
-AFTER UPDATE ON "period_grades" FOR EACH ROW
-WHEN OLD."updated_at" = NEW."updated_at"
+CREATE TRIGGER IF NOT EXISTS "tg_enrollments_outbox_delete"
+AFTER DELETE ON "enrollments" FOR EACH ROW
+WHEN EXISTS (SELECT 1 FROM "class_records" WHERE "id" = OLD."class_record_id")
+ AND EXISTS (SELECT 1 FROM "students"      WHERE "id" = OLD."student_id")
 BEGIN
-  UPDATE "period_grades" SET "updated_at" = datetime('now') WHERE "id" = OLD."id";
+  INSERT INTO "sync_outbox" ("entity", "entity_id", "operation", "payload")
+  VALUES ('enrollment', OLD."id", 'delete', json_object(
+    'class_record_local_id', OLD."class_record_id",
+    'student_no',            (SELECT "student_no" FROM "students" WHERE "id" = OLD."student_id")
+  ));
+END;
+
+CREATE TRIGGER IF NOT EXISTS "tg_period_grades_outbox_insert"
+AFTER INSERT ON "period_grades" FOR EACH ROW
+BEGIN
+  INSERT INTO "sync_outbox" ("entity", "entity_id", "operation", "payload")
+  VALUES ('period_grade', NEW."id", 'insert', json_object(
+    'class_record_local_id', (SELECT "class_record_id" FROM "enrollments" WHERE "id" = NEW."enrollment_id"),
+    'student_no',            (SELECT s."student_no" FROM "enrollments" e
+                                JOIN "students" s ON s."id" = e."student_id"
+                               WHERE e."id" = NEW."enrollment_id"),
+    'period',                NEW."period",
+    'grade',                 NEW."grade",
+    'is_incomplete',         NEW."is_incomplete",
+    'raw_scores',            json(NEW."raw_scores")
+  ));
+END;
+
+CREATE TRIGGER IF NOT EXISTS "tg_period_grades_outbox_update"
+AFTER UPDATE ON "period_grades" FOR EACH ROW
+WHEN OLD."server_id" IS NEW."server_id"
+BEGIN
+  INSERT INTO "sync_outbox" ("entity", "entity_id", "operation", "payload")
+  VALUES ('period_grade', NEW."id", 'update', json_object(
+    'class_record_local_id', (SELECT "class_record_id" FROM "enrollments" WHERE "id" = NEW."enrollment_id"),
+    'student_no',            (SELECT s."student_no" FROM "enrollments" e
+                                JOIN "students" s ON s."id" = e."student_id"
+                               WHERE e."id" = NEW."enrollment_id"),
+    'period',                NEW."period",
+    'grade',                 NEW."grade",
+    'is_incomplete',         NEW."is_incomplete",
+    'raw_scores',            json(NEW."raw_scores")
+  ));
+END;
+
+CREATE TRIGGER IF NOT EXISTS "tg_period_grades_outbox_delete"
+AFTER DELETE ON "period_grades" FOR EACH ROW
+WHEN EXISTS (SELECT 1 FROM "enrollments" WHERE "id" = OLD."enrollment_id")
+BEGIN
+  INSERT INTO "sync_outbox" ("entity", "entity_id", "operation", "payload")
+  VALUES ('period_grade', OLD."id", 'delete', json_object(
+    'class_record_local_id', (SELECT "class_record_id" FROM "enrollments" WHERE "id" = OLD."enrollment_id"),
+    'student_no',            (SELECT s."student_no" FROM "enrollments" e
+                                JOIN "students" s ON s."id" = e."student_id"
+                               WHERE e."id" = OLD."enrollment_id"),
+    'period',                OLD."period"
+  ));
 END;
 
 -- The two single-row settings tables start empty-but-present, so the app can
