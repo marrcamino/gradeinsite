@@ -21,6 +21,11 @@
       "csp": null
     }
   },
+  "plugins": {
+    "sql": {
+      "preload": ["sqlite:gradeinsite.db"]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
