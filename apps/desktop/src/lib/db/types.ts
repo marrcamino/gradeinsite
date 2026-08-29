@@ -185,6 +185,24 @@ export function periodWeight(record: ClassRecord, period: Period): number {
   }
 }
 
+/** The six percentage shares, which is how much of a period grade each part carries. */
+export function componentShare(record: ClassRecord, component: Component): number {
+  switch (component) {
+    case 'qe':
+      return record.pct_quizzes
+    case 'at':
+      return record.pct_attendance
+    case 'as':
+      return record.pct_assignment
+    case 'co':
+      return record.pct_course_output
+    case 'op':
+      return record.pct_oral
+    case 'me':
+      return record.pct_major_exam
+  }
+}
+
 /** The periods this record actually grades — a weight of zero hides a sheet. */
 export function activePeriods(record: ClassRecord): Period[] {
   return PERIODS.filter((period) => periodWeight(record, period) > 0)
