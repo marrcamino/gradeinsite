@@ -35,3 +35,6 @@ npm-debug.log*
 # Claude
 .claude
 CLAUDE.md
+
+# Knowledge graph (graphify)
+graphify-out/
