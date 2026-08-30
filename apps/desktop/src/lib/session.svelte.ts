@@ -1,3 +1,4 @@
+import { browser } from '$app/environment'
 import { invoke } from '@tauri-apps/api/core'
 import { QUICK_TIMEOUT_MS, post } from '$lib/api/client'
 import { clearAccount, getAccount, getStoredPasswordHash, saveAccount, touchLogin } from '$lib/db'
@@ -6,9 +7,11 @@ import type { InstructorAccount } from '$lib/db'
 /**
  * Who is signed in, for this run of the app.
  *
- * Signing in is deliberately required every launch even though the account is
- * cached: the cache exists so the app works without the server, not so it opens
- * straight into someone's records on a laptop left on a desk.
+ * Signing in is required once per launch even though the account is cached: the
+ * cache exists so the app works without the server, not so it opens straight
+ * into someone's records on a laptop left on a desk. It is not required again
+ * for a reload, though — a reload is the same run of the app, and losing the
+ * screen you were on because the webview restarted is a bug, not a lock.
  *
  * There are two ways in, and which one is used depends only on whether the
  * server answers:
@@ -19,6 +22,19 @@ import type { InstructorAccount } from '$lib/db'
  *               account that last signed in on the network can get in this way,
  *               which is the instructor whose records are on the laptop anyway.
  */
+
+/**
+ * Where the session survives a reload.
+ *
+ * `sessionStorage` — not `localStorage` — is what draws the line the app wants.
+ * It is scoped to the life of the webview: a reload keeps it, closing the
+ * window empties it. That is exactly "stay signed in until the app is closed",
+ * without the app having to guess when a run ended.
+ *
+ * Only the identity goes in, never the password or its hash. Those stay in
+ * SQLite, where the offline check reads them.
+ */
+const SESSION_KEY = 'gradeinsite:session'
 
 export interface Session {
   serverId: number | null
@@ -53,6 +69,41 @@ class SessionStore {
       return ''
     }
     return `${this.current.firstName} ${this.current.lastName}`.trim()
+  }
+
+  /**
+   * Pick the session back up after a reload, and hand it to whoever asked.
+   *
+   * The root layout's `load` calls this before the first screen renders, so a
+   * refresh lands on the records again rather than flashing the sign-in form
+   * and navigating away from it. An already-restored session is returned as it
+   * is: this runs once per launch, but re-running it must not undo a sign-out.
+   */
+  restore(): Session | null {
+    if (this.current || !browser) {
+      return this.current
+    }
+
+    const stored = sessionStorage.getItem(SESSION_KEY)
+    if (!stored) {
+      return null
+    }
+
+    try {
+      this.current = JSON.parse(stored) as Session
+    } catch {
+      // Nothing readable is worth keeping; make them sign in again.
+      sessionStorage.removeItem(SESSION_KEY)
+    }
+
+    return this.current
+  }
+
+  /** Write the current session where a reload will find it. */
+  private remember() {
+    if (browser && this.current) {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(this.current))
+    }
   }
 
   /**
@@ -97,6 +148,7 @@ class SessionStore {
         firstName: instructor.first_name,
         online: true,
       }
+      this.remember()
       return { ok: true, session: this.current }
     }
 
@@ -148,6 +200,7 @@ class SessionStore {
       firstName: account.first_name ?? '',
       online: false,
     }
+    this.remember()
     return { ok: true, session: this.current }
   }
 
@@ -158,6 +211,9 @@ class SessionStore {
 
   signOut() {
     this.current = null
+    if (browser) {
+      sessionStorage.removeItem(SESSION_KEY)
+    }
   }
 
   /**
@@ -166,7 +222,7 @@ class SessionStore {
    */
   async forget() {
     await clearAccount()
-    this.current = null
+    this.signOut()
   }
 }
 

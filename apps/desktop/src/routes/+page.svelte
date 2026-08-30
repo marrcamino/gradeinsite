@@ -18,13 +18,8 @@
     }
   })
 
-  // Coming back here with a session still open — a browser-style back gesture —
-  // should not show a sign-in form to somebody who is already signed in.
-  $effect(() => {
-    if (session.signedIn) {
-      goto('/records')
-    }
-  })
+  // Somebody who is already signed in never gets this far: `+page.ts` sends
+  // them on to their records before this screen is built.
 
   async function submit(event: SubmitEvent) {
     event.preventDefault()
