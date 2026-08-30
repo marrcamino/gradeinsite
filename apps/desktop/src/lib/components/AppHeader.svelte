@@ -9,7 +9,7 @@
   // Signing out only clears the session; the route guard is what navigates.
 </script>
 
-<header class="sticky top-0 z-10 border-b border-border bg-background">
+<header class="z-10 shrink-0 border-b border-border bg-background">
   <div class="mx-auto flex max-w-5xl items-center gap-3 px-6 py-3">
     <img src="/favicon.png" alt="" class="h-7 w-7" />
     <span class="text-base font-semibold tracking-tight text-primary">GradeInsite</span>

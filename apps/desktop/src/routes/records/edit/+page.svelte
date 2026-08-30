@@ -191,201 +191,203 @@
   load()
 </script>
 
-<a href="/records" class="link text-xs">&larr; Class records</a>
+<main class="mx-auto w-full max-w-5xl flex-1 overflow-auto px-6 py-6">
+  <a href="/records" class="link text-xs">&larr; Class records</a>
 
-<h1 class="mt-3 text-xl font-semibold tracking-tight">
-  {editing ? 'Edit class record' : 'New class record'}
-</h1>
+  <h1 class="mt-3 text-xl font-semibold tracking-tight">
+    {editing ? 'Edit class record' : 'New class record'}
+  </h1>
 
-{#if loading}
-  <p class="hint mt-2">Loading…</p>
-{:else}
-  <form onsubmit={submit} class="mt-6 space-y-6">
-    <section class="card">
-      <div class="card-header">
-        <h2 class="card-title">Course</h2>
-      </div>
-
-      <div class="card-body grid gap-4 sm:grid-cols-2">
-        <div class="space-y-1">
-          <label class="label" for="program">Program</label>
-          <input
-            id="program"
-            bind:value={draft.program}
-            list="programs"
-            placeholder="BSIT"
-            autocomplete="off"
-            class="input"
-          />
-          <datalist id="programs">
-            {#each programs as program (program)}
-              <option value={program}></option>
-            {/each}
-          </datalist>
+  {#if loading}
+    <p class="hint mt-2">Loading…</p>
+  {:else}
+    <form onsubmit={submit} class="mt-6 space-y-6">
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">Course</h2>
         </div>
 
-        <div class="space-y-1">
-          <label class="label" for="year-level">Year level</label>
-          <select id="year-level" bind:value={draft.year_level} class="select">
-            {#each [1, 2, 3, 4, 5, 6] as level (level)}
-              <option value={level}>{level}</option>
-            {/each}
-          </select>
-        </div>
-
-        <div class="space-y-1">
-          <label class="label" for="course-code">Course code</label>
-          <input
-            id="course-code"
-            bind:value={draft.course_code}
-            placeholder="IT 311"
-            autocomplete="off"
-            class="input"
-          />
-        </div>
-
-        <div class="space-y-1">
-          <label class="label" for="course-name">Course description</label>
-          <input
-            id="course-name"
-            bind:value={draft.course_name}
-            placeholder="Systems Integration and Architecture"
-            autocomplete="off"
-            class="input"
-          />
-        </div>
-
-        <div class="space-y-1">
-          <label class="label" for="term">Term</label>
-          <select id="term" bind:value={draft.term} class="select">
-            <option value={1}>1st Semester</option>
-            <option value={2}>2nd Semester</option>
-          </select>
-        </div>
-
-        <div class="space-y-1">
-          <label class="label" for="school-year">School year</label>
-          <div class="flex items-center gap-2">
+        <div class="card-body grid gap-4 sm:grid-cols-2">
+          <div class="space-y-1">
+            <label class="label" for="program">Program</label>
             <input
-              id="school-year"
-              bind:value={draft.school_year_start}
-              type="number"
-              min="2000"
-              max="2100"
-              step="1"
-              class="input w-28"
+              id="program"
+              bind:value={draft.program}
+              list="programs"
+              placeholder="BSIT"
+              autocomplete="off"
+              class="input"
             />
-            <span class="hint">to {Number(draft.school_year_start) + 1}</span>
+            <datalist id="programs">
+              {#each programs as program (program)}
+                <option value={program}></option>
+              {/each}
+            </datalist>
+          </div>
+
+          <div class="space-y-1">
+            <label class="label" for="year-level">Year level</label>
+            <select id="year-level" bind:value={draft.year_level} class="select">
+              {#each [1, 2, 3, 4, 5, 6] as level (level)}
+                <option value={level}>{level}</option>
+              {/each}
+            </select>
+          </div>
+
+          <div class="space-y-1">
+            <label class="label" for="course-code">Course code</label>
+            <input
+              id="course-code"
+              bind:value={draft.course_code}
+              placeholder="IT 311"
+              autocomplete="off"
+              class="input"
+            />
+          </div>
+
+          <div class="space-y-1">
+            <label class="label" for="course-name">Course description</label>
+            <input
+              id="course-name"
+              bind:value={draft.course_name}
+              placeholder="Systems Integration and Architecture"
+              autocomplete="off"
+              class="input"
+            />
+          </div>
+
+          <div class="space-y-1">
+            <label class="label" for="term">Term</label>
+            <select id="term" bind:value={draft.term} class="select">
+              <option value={1}>1st Semester</option>
+              <option value={2}>2nd Semester</option>
+            </select>
+          </div>
+
+          <div class="space-y-1">
+            <label class="label" for="school-year">School year</label>
+            <div class="flex items-center gap-2">
+              <input
+                id="school-year"
+                bind:value={draft.school_year_start}
+                type="number"
+                min="2000"
+                max="2100"
+                step="1"
+                class="input w-28"
+              />
+              <span class="hint">to {Number(draft.school_year_start) + 1}</span>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <label class="label" for="schedule">Schedule</label>
+            <input
+              id="schedule"
+              bind:value={draft.schedule}
+              placeholder="MWF 9:00 - 10:00 AM"
+              autocomplete="off"
+              class="input"
+            />
+            <p class="hint">Optional. Printed on the sheet.</p>
+          </div>
+
+          <div class="space-y-1">
+            <label class="label" for="instructor">Instructor</label>
+            <input
+              id="instructor"
+              bind:value={draft.instructor_name}
+              autocomplete="off"
+              class="input"
+            />
+            <p class="hint">Optional. Printed on the sheet.</p>
           </div>
         </div>
+      </section>
 
-        <div class="space-y-1">
-          <label class="label" for="schedule">Schedule</label>
-          <input
-            id="schedule"
-            bind:value={draft.schedule}
-            placeholder="MWF 9:00 - 10:00 AM"
-            autocomplete="off"
-            class="input"
-          />
-          <p class="hint">Optional. Printed on the sheet.</p>
-        </div>
+      <div class="grid gap-6 sm:grid-cols-2">
+        <section class="card">
+          <div class="card-header">
+            <h2 class="card-title">Grading periods</h2>
+            <p class="hint">
+              What each period is worth in the final grade. A period left at 0 is not used and
+              gets no sheet.
+            </p>
+          </div>
 
-        <div class="space-y-1">
-          <label class="label" for="instructor">Instructor</label>
-          <input
-            id="instructor"
-            bind:value={draft.instructor_name}
-            autocomplete="off"
-            class="input"
-          />
-          <p class="hint">Optional. Printed on the sheet.</p>
-        </div>
+          <div class="card-body space-y-2">
+            {#each PERIODS as period (period)}
+              <div class="flex items-center gap-3">
+                <label class="label flex-1" for="weight-{period}">{PERIOD_NAMES[period]}</label>
+                <input
+                  id="weight-{period}"
+                  bind:value={weights[period]}
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  class="input input-sm w-20 text-right"
+                />
+              </div>
+            {/each}
+
+            <div class="flex items-center gap-3 border-t border-border pt-3">
+              <span class="label flex-1">Total</span>
+              <span class={totalBadge(weightTotal)}>{weightTotal}%</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <h2 class="card-title">Percentage distribution</h2>
+            <p class="hint">
+              Within one period, what each kind of work is worth. The same split is used for
+              every period.
+            </p>
+          </div>
+
+          <div class="card-body space-y-2">
+            {#each COMPONENTS as component (component)}
+              <div class="flex items-center gap-3">
+                <label class="label flex-1" for="share-{component}">
+                  {COMPONENT_NAMES[component]}
+                </label>
+                <input
+                  id="share-{component}"
+                  bind:value={shares[component]}
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  class="input input-sm w-20 text-right"
+                />
+              </div>
+            {/each}
+
+            <div class="flex items-center gap-3 border-t border-border pt-3">
+              <span class="label flex-1">Total</span>
+              <span class={totalBadge(shareTotal)}>{shareTotal}%</span>
+            </div>
+          </div>
+        </section>
       </div>
-    </section>
 
-    <div class="grid gap-6 sm:grid-cols-2">
-      <section class="card">
-        <div class="card-header">
-          <h2 class="card-title">Grading periods</h2>
-          <p class="hint">
-            What each period is worth in the final grade. A period left at 0 is not used and
-            gets no sheet.
-          </p>
-        </div>
+      <p class="hint">
+        Both tables have to add up to 100 before the sheet can compute a grade. Leaving them
+        at 0 saves the record and lets the scheme be filled in later.
+      </p>
 
-        <div class="card-body space-y-2">
-          {#each PERIODS as period (period)}
-            <div class="flex items-center gap-3">
-              <label class="label flex-1" for="weight-{period}">{PERIOD_NAMES[period]}</label>
-              <input
-                id="weight-{period}"
-                bind:value={weights[period]}
-                type="number"
-                min="0"
-                max="100"
-                step="1"
-                class="input input-sm w-20 text-right"
-              />
-            </div>
-          {/each}
+      {#if error}
+        <p class="alert alert-error">{error}</p>
+      {/if}
 
-          <div class="flex items-center gap-3 border-t border-border pt-3">
-            <span class="label flex-1">Total</span>
-            <span class={totalBadge(weightTotal)}>{weightTotal}%</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="card-header">
-          <h2 class="card-title">Percentage distribution</h2>
-          <p class="hint">
-            Within one period, what each kind of work is worth. The same split is used for
-            every period.
-          </p>
-        </div>
-
-        <div class="card-body space-y-2">
-          {#each COMPONENTS as component (component)}
-            <div class="flex items-center gap-3">
-              <label class="label flex-1" for="share-{component}">
-                {COMPONENT_NAMES[component]}
-              </label>
-              <input
-                id="share-{component}"
-                bind:value={shares[component]}
-                type="number"
-                min="0"
-                max="100"
-                step="1"
-                class="input input-sm w-20 text-right"
-              />
-            </div>
-          {/each}
-
-          <div class="flex items-center gap-3 border-t border-border pt-3">
-            <span class="label flex-1">Total</span>
-            <span class={totalBadge(shareTotal)}>{shareTotal}%</span>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <p class="hint">
-      Both tables have to add up to 100 before the sheet can compute a grade. Leaving them
-      at 0 saves the record and lets the scheme be filled in later.
-    </p>
-
-    {#if error}
-      <p class="alert alert-error">{error}</p>
-    {/if}
-
-    <div class="flex items-center gap-2">
-      <button type="submit" disabled={saving} class="btn btn-primary">
-        {saving ? 'Saving…' : editing ? 'Save changes' : 'Create record'}
-      </button>
-      <a href="/records" class="btn btn-outline">Cancel</a>
-    </div>
-  </form>
-{/if}
+      <div class="flex items-center gap-2">
+        <button type="submit" disabled={saving} class="btn btn-primary">
+          {saving ? 'Saving…' : editing ? 'Save changes' : 'Create record'}
+        </button>
+        <a href="/records" class="btn btn-outline">Cancel</a>
+      </div>
+    </form>
+  {/if}
+</main>

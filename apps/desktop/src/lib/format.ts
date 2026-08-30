@@ -18,3 +18,13 @@ const ORDINALS = ['', '1st', '2nd', '3rd', '4th', '5th', '6th']
 export function yearLevelName(level: number): string {
   return `${ORDINALS[level] ?? level} Year`
 }
+
+/** "Dela Pena, Jose R." — how a name is written on a class record. */
+export function studentName(student: {
+  last_name: string
+  first_name: string
+  middle_initial?: string | null
+}): string {
+  const initial = student.middle_initial?.trim()
+  return `${student.last_name}, ${student.first_name}${initial ? ` ${initial}.` : ''}`
+}
