@@ -19,7 +19,8 @@ export function listSheetRows(classRecordId: number): Promise<SheetRow[]> {
   return rows<SheetRow>(
     `SELECT e.id, e.server_id, e.class_record_id, e.student_id, e.row_order,
             e.final_grade, e.remarks, e.created_at, e.updated_at,
-            s.student_no, s.last_name, s.first_name, s.middle_initial
+            s.student_no, s.last_name, s.first_name, s.middle_initial,
+            s.program, s.year_level
        FROM enrollments e
        JOIN students    s ON s.id = e.student_id
       WHERE e.class_record_id = $1

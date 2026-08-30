@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
   --background: oklch(1 0 0);
@@ -32,11 +32,21 @@
   --input: oklch(0.869 0.005 56.4);
   --ring: var(--primary);
 
+  /* A tint per grade component, so a group of columns can be picked out at a
+     glance across a sheet far wider than the window. These are the 2024
+     sheet's own colours, which is what the manuscript shows. */
+  --sheet-qe: oklch(0.977 0.011 25);
+  --sheet-at: oklch(0.982 0.014 155);
+  --sheet-as: oklch(0.972 0.012 274);
+  --sheet-op: oklch(0.973 0.014 320);
+  --sheet-co: oklch(0.99 0.017 95);
+  --sheet-me: oklch(0.984 0.014 205);
+
   --radius: 0.5rem;
 }
 
 @theme inline {
-  --font-sans: "Segoe UI", system-ui, sans-serif;
+  --font-sans: 'Segoe UI', system-ui, sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -182,6 +192,16 @@
     @apply flex items-center gap-2 border-t border-border px-4 py-3;
   }
 
+  /* A native <dialog> brings its own backdrop, Esc handling and focus trap, so
+     these classes only have to dress the panel. */
+  .dialog {
+    @apply m-auto w-[min(36rem,calc(100vw-2rem))] rounded-lg border border-border bg-card p-0 text-card-foreground shadow-lg;
+  }
+
+  .dialog::backdrop {
+    background: rgb(0 0 0 / 0.4);
+  }
+
   .alert {
     @apply rounded-md border px-3 py-2 text-xs;
   }
@@ -249,6 +269,101 @@
 
   .table tbody tr:hover {
     @apply bg-muted/60;
+  }
+
+  /* The grading period grid.
+     Where `.table` is a list of records, this is a spreadsheet: two merged
+     header rows, one narrow column per piece of work, and the derived
+     TOTAL/GRD/EQV columns closing each component group. It sizes to its
+     content and scrolls sideways inside its own frame rather than stretching,
+     because a term's worth of quizzes is wider than any window. */
+  .sheet {
+    @apply w-max border-collapse text-xs tabular-nums;
+  }
+
+  .sheet th,
+  .sheet td {
+    @apply border border-border px-1.5 py-1 text-center align-middle whitespace-nowrap;
+  }
+
+  .sheet th {
+    @apply font-semibold text-foreground;
+  }
+
+  /* The merged cell over a whole component group. */
+  .sheet-group {
+    @apply px-2 py-1.5;
+  }
+
+  /* The identity columns down the left, and the rating on the right: both span
+     the two header rows, and neither is typed into. */
+  .sheet-fixed {
+    @apply bg-muted/70;
+  }
+
+  .sheet-name {
+    @apply text-left font-medium;
+  }
+
+  /* A row with a mark still missing, the way 2024 reddened the name. */
+  .sheet-lacking {
+    @apply bg-destructive/10;
+  }
+
+  /* TOTAL, GRD, EQV — worked out, never typed into. */
+  .sheet-derived {
+    @apply font-medium;
+  }
+
+  .sheet-empty {
+    @apply text-muted-foreground;
+  }
+
+  .sheet-pass {
+    @apply bg-success/15 font-semibold;
+  }
+
+  .sheet-fail {
+    @apply bg-destructive/15 font-semibold;
+  }
+
+  /* A cell is the input, so the grid reads as one surface rather than a form. */
+  .sheet-input {
+    @apply w-12 rounded-sm border border-transparent bg-transparent px-1 py-0.5 text-center text-xs tabular-nums focus:border-primary focus:bg-background focus:ring-[3px] focus:ring-ring/25 focus:outline-none;
+  }
+
+  .sheet-input:hover {
+    @apply border-input;
+  }
+
+  .sheet-input::-webkit-outer-spin-button,
+  .sheet-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .sheet-qe {
+    background-color: var(--sheet-qe);
+  }
+
+  .sheet-at {
+    background-color: var(--sheet-at);
+  }
+
+  .sheet-as {
+    background-color: var(--sheet-as);
+  }
+
+  .sheet-op {
+    background-color: var(--sheet-op);
+  }
+
+  .sheet-co {
+    background-color: var(--sheet-co);
+  }
+
+  .sheet-me {
+    background-color: var(--sheet-me);
   }
 
   .link {

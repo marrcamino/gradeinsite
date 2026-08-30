@@ -14,12 +14,16 @@ export const REMARKS = ['PASSED', 'FAILED', 'INC', 'DROPPED'] as const
 export type Remark = (typeof REMARKS)[number]
 
 /** The kinds of work a period grade is made of, in the order the sheet shows them. */
-export const COMPONENTS = ['qe', 'at', 'as', 'co', 'op', 'me'] as const
+export const COMPONENTS = ['qe', 'at', 'as', 'op', 'co', 'me'] as const
 export type Component = (typeof COMPONENTS)[number]
 
 /** The three components an instructor can add columns to. */
 export const LIST_COMPONENTS = ['qe', 'at', 'as'] as const
 export type ListComponent = (typeof LIST_COMPONENTS)[number]
+
+/** The three that are a single score rather than a list of columns. */
+export const SINGLE_COMPONENTS = ['op', 'co', 'me'] as const
+export type SingleComponent = (typeof SINGLE_COMPONENTS)[number]
 
 export const COMPONENT_NAMES: Record<Component, string> = {
   qe: 'Quizzes & exercises',
@@ -32,9 +36,9 @@ export const COMPONENT_NAMES: Record<Component, string> = {
 
 export const PERIOD_NAMES: Record<Period, string> = {
   prelim: 'Prelim',
-  premid: 'Pre-midterm',
+  premid: 'Premid',
   midterm: 'Midterm',
-  prefinal: 'Pre-final',
+  prefinal: 'Prefinal',
   final: 'Final',
 }
 
@@ -125,6 +129,8 @@ export interface SheetRow extends Enrollment {
   last_name: string
   first_name: string
   middle_initial: string | null
+  program: string
+  year_level: number | null
 }
 
 export interface PeriodGrade {

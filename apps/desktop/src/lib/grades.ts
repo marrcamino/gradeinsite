@@ -1,5 +1,20 @@
-import { COMPONENTS, activePeriods, componentShare, periodWeight } from './db/types'
-import type { ClassRecord, Component, Period, PeriodLayout, RawScores, Remark } from './db/types'
+import {
+  COMPONENTS,
+  LIST_COMPONENTS,
+  SINGLE_COMPONENTS,
+  activePeriods,
+  componentShare,
+  periodWeight,
+} from './db/types'
+import type {
+  ClassRecord,
+  Component,
+  ListComponent,
+  Period,
+  PeriodLayout,
+  RawScores,
+  Remark,
+} from './db/types'
 
 /**
  * How a mark becomes a grade.
@@ -46,6 +61,101 @@ export function fitScores(layout: PeriodLayout, scores: RawScores | null): RawSc
     op: scores?.op ?? null,
     me: scores?.me ?? null,
   }
+}
+
+/** A quiz or an assignment nobody has told us about yet is out of ten. */
+const DEFAULT_PERFECT = 10
+
+/**
+ * What a newly added column is out of.
+ *
+ * An attendance column is one meeting, marked present or absent, so it is
+ * always out of one — that is what makes `perfectScore` able to read attendance
+ * either as a count of days or as a sum of columns and get the same number.
+ */
+export function newColumnPerfect(component: ListComponent): number {
+  return component === 'at' ? 1 : DEFAULT_PERFECT
+}
+
+/**
+ * Give every component the record grades at least one column.
+ *
+ * A component carrying a percentage but holding no columns can never produce a
+ * percentage, which stops the whole period rating — so the sheet would show a
+ * row of dashes and no way to guess why. Starting it at one column means the
+ * grid always has somewhere to type, and the instructor adds or removes columns
+ * from there.
+ */
+export function ensureColumns(record: ClassRecord, layout: PeriodLayout): PeriodLayout {
+  const filled: PeriodLayout = { ...layout, qe: [...layout.qe], at: [...layout.at], as: [...layout.as] }
+
+  for (const component of LIST_COMPONENTS) {
+    if (componentShare(record, component) > 0 && filled[component].length === 0) {
+      filled[component] = [newColumnPerfect(component)]
+    }
+  }
+
+  return filled
+}
+
+/** Whether two layouts hold the same columns, so a rebuild knows to save. */
+export function sameLayout(left: PeriodLayout, right: PeriodLayout): boolean {
+  const sameList = (a: number[], b: number[]) =>
+    a.length === b.length && a.every((value, index) => value === b[index])
+
+  return (
+    sameList(left.qe, right.qe) &&
+    sameList(left.at, right.at) &&
+    sameList(left.as, right.as) &&
+    left.co === right.co &&
+    left.op === right.op &&
+    left.me === right.me
+  )
+}
+
+/** Whether anything at all has been entered for a row, marks or none. */
+export function hasAnyMark(scores: RawScores): boolean {
+  return (
+    scores.qe.some((mark) => mark !== null) ||
+    scores.at.some((mark) => mark !== null) ||
+    scores.as.some((mark) => mark !== null) ||
+    scores.op !== null ||
+    scores.co !== null ||
+    scores.me !== null
+  )
+}
+
+/**
+ * Whether a row still has a blank where a mark belongs — the LACK flag 2024
+ * kept in a hidden column and used to redden the student's name.
+ *
+ * Only components the record actually grades are looked at, and attendance is
+ * left out of it: a meeting is either ticked or not, so an unticked box is an
+ * absence that has been recorded rather than a mark nobody has entered. In 2024
+ * an absence did count as lacking, which meant a student who genuinely missed a
+ * class stayed flagged all term with nothing the instructor could do about it.
+ */
+export function hasMissingMarks(
+  record: ClassRecord,
+  layout: PeriodLayout,
+  scores: RawScores
+): boolean {
+  for (const component of LIST_COMPONENTS) {
+    if (component === 'at' || componentShare(record, component) === 0) {
+      continue
+    }
+    if (scores[component].some((mark) => mark === null)) {
+      return true
+    }
+  }
+
+  for (const component of SINGLE_COMPONENTS) {
+    if (componentShare(record, component) > 0 && scores[component] === null) {
+      return true
+    }
+  }
+
+  return false
 }
 
 /**
