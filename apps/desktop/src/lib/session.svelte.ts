@@ -31,10 +31,16 @@ import type { InstructorAccount } from '$lib/db'
  * window empties it. That is exactly "stay signed in until the app is closed",
  * without the app having to guess when a run ended.
  *
- * Only the identity goes in, never the password or its hash. Those stay in
- * SQLite, where the offline check reads them.
+ * The password goes in beside the identity, under its own key, because
+ * `sync-push.php` asks for it on every push and the instructor should type it
+ * once when the app opens and not again. Keeping it only in memory was the
+ * first attempt and it did not survive a reload, which put a password prompt in
+ * front of a routine sync. The hash stays in SQLite, where the offline sign-in
+ * reads it; this copy is the plain password, and it is gone the moment the
+ * window closes.
  */
 const SESSION_KEY = 'gradeinsite:session'
+const PASSWORD_KEY = 'gradeinsite:password'
 
 export interface Session {
   serverId: number | null
@@ -60,8 +66,38 @@ export type SignInResult = { ok: true; session: Session } | { ok: false; message
 class SessionStore {
   current = $state<Session | null>(null)
 
+  /**
+   * The password, kept for as long as the app is open.
+   *
+   * `sync-push.php` authenticates every request the way the sign-in did, with a
+   * username and a password, and the queue is drained often enough that asking
+   * for it each time would be in the instructor's way all day. So it is typed
+   * once, at sign-in, and held here and in `sessionStorage` — see the note on
+   * `PASSWORD_KEY` — until the window closes. SQLite still only ever holds the
+   * hash, which is what the offline sign-in checks against.
+   */
+  #password: string | null = null
+
   get signedIn(): boolean {
     return this.current !== null
+  }
+
+  /** What a sync needs to authenticate, or null if the password is not held. */
+  get credentials(): { username: string; password: string } | null {
+    if (!this.current || !this.#password) {
+      return null
+    }
+    return { username: this.current.username, password: this.#password }
+  }
+
+  /**
+   * Hand back a password the instructor re-entered, once the server has taken
+   * it. Only the sync does this, and only when the password is missing — an
+   * account set up before the app kept one, say.
+   */
+  holdPassword(password: string) {
+    this.#password = password
+    this.remember()
   }
 
   get displayName(): string {
@@ -91,6 +127,7 @@ class SessionStore {
 
     try {
       this.current = JSON.parse(stored) as Session
+      this.#password = sessionStorage.getItem(PASSWORD_KEY)
     } catch {
       // Nothing readable is worth keeping; make them sign in again.
       sessionStorage.removeItem(SESSION_KEY)
@@ -103,6 +140,10 @@ class SessionStore {
   private remember() {
     if (browser && this.current) {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify(this.current))
+
+      if (this.#password) {
+        sessionStorage.setItem(PASSWORD_KEY, this.#password)
+      }
     }
   }
 
@@ -148,6 +189,7 @@ class SessionStore {
         firstName: instructor.first_name,
         online: true,
       }
+      this.#password = password
       this.remember()
       return { ok: true, session: this.current }
     }
@@ -200,6 +242,10 @@ class SessionStore {
       firstName: account.first_name ?? '',
       online: false,
     }
+    // The password was checked against this laptop's own hash rather than the
+    // server's, but it is the same password the server will ask for when the
+    // wi-fi comes back, so the sync can use it without a prompt.
+    this.#password = password
     this.remember()
     return { ok: true, session: this.current }
   }
@@ -211,8 +257,10 @@ class SessionStore {
 
   signOut() {
     this.current = null
+    this.#password = null
     if (browser) {
       sessionStorage.removeItem(SESSION_KEY)
+      sessionStorage.removeItem(PASSWORD_KEY)
     }
   }
 
