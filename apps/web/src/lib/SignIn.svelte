@@ -42,7 +42,7 @@
 </script>
 
 <main class="mx-auto flex min-h-full w-full max-w-sm flex-col justify-center p-8">
-  <img src="./favicon.svg" alt="" class="mx-auto h-14 w-14" />
+  <img src="./favicon.png" alt="" class="mx-auto h-14 w-14" />
 
   <h1 class="mt-6 text-center text-2xl font-bold tracking-tight">Get started by logging in</h1>
   <p class="mt-1 text-center text-sm muted">See your grades for this term.</p>
