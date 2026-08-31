@@ -9,9 +9,10 @@ const DB_URL: &str = "sqlite:gradeinsite.db";
 /// on disk could go missing or be edited; this one cannot, and the file in
 /// `db/migrations/` stays the single source both databases are written from.
 ///
-/// Versions are append-only. Changing the SQL of a migration that has already
-/// run does nothing to a computer that has run it, so a change to the schema is
-/// always a new file and a new version here.
+/// Versions are append-only. Editing one that has already run does nothing to
+/// the database, and the plugin checksums each file whole — so changing even a
+/// comment in it stops the app from starting. A change to the schema is always
+/// a new file and a new version here.
 fn migrations() -> Vec<Migration> {
     vec![
         Migration {

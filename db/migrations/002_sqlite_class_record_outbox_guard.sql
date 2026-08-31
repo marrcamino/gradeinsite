@@ -18,7 +18,7 @@
 -- an edited record keeps the same `server_id`, and `synced_at` still has to
 -- move — so the timestamp is what the guard leans on. `synced_at` has
 -- millisecond resolution, and one push can stamp the same record twice: a
--- record that was created and then edited before the computer next reached the
+-- record that was created and then edited before the laptop next reached the
 -- server has two entries in the queue, and `markPushed()` runs once per entry
 -- with no network in between. When both stamps land inside the same
 -- millisecond, neither guarded column changes, the guard reads the write as an
