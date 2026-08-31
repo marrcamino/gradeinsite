@@ -1,11 +1,15 @@
 <script lang="ts">
   import {
     createStudent,
+    deleteStudent,
     enrolStudent,
     findStudentByNumber,
+    getStudent,
     listStudentsNotIn,
     removeEnrollment,
     reorderSheet,
+    studentFootprint,
+    updateStudent,
   } from '$lib/db'
   import type { ClassRecord, SheetRow, Student } from '$lib/db'
   import { studentName, yearLevelName } from '$lib/format'
@@ -15,7 +19,16 @@
    *
    * A student exists once on the laptop and is put on a sheet by enrolling
    * them. 2024 copied the name and program into a table made for this one
-   * record, so correcting a spelling meant finding every copy of it.
+   * record, so correcting a spelling meant finding every copy of it. Here the
+   * correction is made once, on the student, and every record showing them
+   * follows — which is the whole point of their existing once.
+   *
+   * Two different removals live on this sheet, and the wording is what keeps
+   * them apart. "Remove" on a row takes the student off THIS record and is the
+   * ordinary thing: a student who dropped the subject. "Delete from this
+   * laptop" is inside the student's own details, because that is where you can
+   * see whose details you are about to destroy, and it says how many records
+   * and grades go with them.
    */
 
   let {
@@ -31,6 +44,13 @@
   let confirming = $state<number | null>(null)
   let error = $state('')
 
+  /** Which job the one dialog is doing. */
+  let editing = $state<number | null>(null)
+  /** What a delete would destroy, counted when the details open. */
+  let footprint = $state<{ records: number; grades: number } | null>(null)
+  let confirmingDelete = $state(false)
+  let busy = $state(false)
+
   let draft = $state({
     student_no: '',
     last_name: '',
@@ -38,14 +58,41 @@
     middle_initial: '',
     program: '',
     year_level: 1,
+    contact: '',
   })
 
   /** Seeded from the record when the form opens: a class list is nearly always
    *  one program, and reading it here rather than at init keeps the default
    *  right if the record is reloaded under the sheet. */
   function startNew() {
+    editing = null
     draft.program = record.program
     draft.year_level = record.year_level
+    dialog?.showModal()
+  }
+
+  /**
+   * The student's own details, read fresh rather than taken from the row.
+   *
+   * A sheet row carries only what the table draws, so it has no `contact` —
+   * and editing from a partial copy would blank the fields it never held.
+   */
+  async function startEdit(studentId: number) {
+    const student = await getStudent(studentId)
+    if (!student) {
+      error = 'That student is no longer on this laptop.'
+      return
+    }
+
+    editing = student.id
+    draft.student_no = student.student_no
+    draft.last_name = student.last_name
+    draft.first_name = student.first_name
+    draft.middle_initial = student.middle_initial ?? ''
+    draft.program = student.program
+    draft.year_level = student.year_level ?? record.year_level
+    draft.contact = student.contact ?? ''
+    footprint = await studentFootprint(student.id)
     dialog?.showModal()
   }
 
@@ -56,7 +103,11 @@
     draft.last_name = ''
     draft.first_name = ''
     draft.middle_initial = ''
+    draft.contact = ''
     error = ''
+    editing = null
+    footprint = null
+    confirmingDelete = false
   }
 
   const matches = $derived.by(() => {
@@ -107,7 +158,7 @@
     await onchange()
   }
 
-  async function createAndEnrol(event: SubmitEvent) {
+  async function save(event: SubmitEvent) {
     event.preventDefault()
     error = ''
 
@@ -121,28 +172,67 @@
     // useful thing to say than a constraint error. Which advice to give depends
     // on where they are: the search list hides anyone already on this record,
     // so sending someone to search for them there would be a dead end.
+    //
+    // Editing has to allow the number the student already holds, or nobody
+    // could correct their own spelling of anything else.
     const existing = await findStudentByNumber(draft.student_no.trim())
-    if (existing) {
+    if (existing && existing.id !== editing) {
       error = rows.some((row) => row.student_id === existing.id)
         ? `${existing.student_no} is already on this record, as ${studentName(existing)}.`
         : `${existing.student_no} is already on this laptop, as ${studentName(existing)}. Close this and search for them instead.`
       return
     }
 
+    const input = {
+      student_no: draft.student_no,
+      last_name: draft.last_name,
+      first_name: draft.first_name,
+      middle_initial: draft.middle_initial,
+      program: draft.program,
+      year_level: Number(draft.year_level),
+      contact: draft.contact,
+    }
+
+    busy = true
     try {
-      const studentId = await createStudent({
-        student_no: draft.student_no,
-        last_name: draft.last_name,
-        first_name: draft.first_name,
-        middle_initial: draft.middle_initial,
-        program: draft.program,
-        year_level: Number(draft.year_level),
-      })
-      await enrolStudent(record.id, studentId)
+      if (editing === null) {
+        const studentId = await createStudent(input)
+        await enrolStudent(record.id, studentId)
+      } else {
+        await updateStudent(editing, input)
+      }
     } catch (failure) {
-      error = `The student could not be added: ${failure}`
+      error = `The student could not be saved: ${failure}`
+      busy = false
       return
     }
+    busy = false
+
+    dialog?.close()
+    await refresh()
+  }
+
+  /**
+   * Delete the student from this laptop entirely.
+   *
+   * Not the same thing as the "Remove" on a row, and the only place the two
+   * could be confused is here, which is why this one is behind the student's
+   * details and states what goes with them.
+   */
+  async function destroy() {
+    if (editing === null) {
+      return
+    }
+
+    busy = true
+    try {
+      await deleteStudent(editing)
+    } catch (failure) {
+      error = `The student could not be deleted: ${failure}`
+      busy = false
+      return
+    }
+    busy = false
 
     dialog?.close()
     await refresh()
@@ -215,18 +305,40 @@
 
 <dialog bind:this={dialog} onclose={reset} class="dialog" aria-labelledby="new-student-title">
   <div class="card-header">
-    <h3 id="new-student-title" class="card-title">A student who is not on this laptop yet</h3>
-    <p class="hint">They are created once here, then put on {record.course_code}.</p>
+    {#if editing === null}
+      <h3 id="new-student-title" class="card-title">A student who is not on this laptop yet</h3>
+      <p class="hint">They are created once here, then put on {record.course_code}.</p>
+    {:else}
+      <h3 id="new-student-title" class="card-title">Student details</h3>
+      <p class="hint">
+        A student is held once on this laptop, so a correction here shows on every record they
+        are on{footprint && footprint.records > 1 ? ` — ${footprint.records} of them` : ''}.
+      </p>
+    {/if}
   </div>
 
-  <form onsubmit={createAndEnrol}>
+  <form onsubmit={save}>
     <div class="card-body grid gap-3 sm:grid-cols-6">
       {#if error}
         <p class="alert alert-error sm:col-span-6">{error}</p>
       {/if}
       <div class="space-y-1 sm:col-span-3">
         <label class="label" for="new-no">Student number</label>
-        <input id="new-no" bind:value={draft.student_no} autocomplete="off" class="input input-sm" />
+        <!-- Fixed once the student exists, exactly as 2024 froze the ID Number
+             cell on a saved row. It is also the name the server knows them by:
+             `sync-push.php` matches a student on their number, so changing it
+             here would not rename them over there, it would make a second
+             student and leave the first one enrolled. -->
+        <input
+          id="new-no"
+          bind:value={draft.student_no}
+          readonly={editing !== null}
+          autocomplete="off"
+          class="input input-sm"
+        />
+        {#if editing !== null}
+          <p class="hint">A student number cannot be changed once the student exists.</p>
+        {/if}
       </div>
       <div class="space-y-1 sm:col-span-3">
         <label class="label" for="new-last">Last name</label>
@@ -268,13 +380,73 @@
           {/each}
         </select>
       </div>
+      <div class="space-y-1 sm:col-span-6">
+        <label class="label" for="new-contact">Contact <span class="muted">(optional)</span></label>
+        <input
+          id="new-contact"
+          bind:value={draft.contact}
+          autocomplete="off"
+          class="input input-sm"
+        />
+      </div>
     </div>
     <div class="card-footer">
-      <button type="submit" class="btn btn-sm btn-primary">Add to record</button>
+      <button type="submit" disabled={busy} class="btn btn-sm btn-primary">
+        {editing === null ? 'Add to record' : 'Save changes'}
+      </button>
       <button type="button" onclick={() => dialog?.close()} class="btn btn-sm btn-ghost">
         Cancel
       </button>
+
+      {#if editing !== null}
+        <!-- Kept apart from the two buttons above, because it is the one thing
+             on this dialogue that cannot be undone. -->
+        <div class="ml-auto">
+          {#if confirmingDelete}
+            <button
+              type="button"
+              onclick={destroy}
+              disabled={busy}
+              class="btn btn-sm btn-destructive"
+            >
+              Yes, delete
+            </button>
+            <button
+              type="button"
+              onclick={() => (confirmingDelete = false)}
+              class="btn btn-sm btn-ghost"
+            >
+              Keep
+            </button>
+          {:else}
+            <button
+              type="button"
+              onclick={() => (confirmingDelete = true)}
+              class="btn btn-sm btn-ghost text-destructive"
+            >
+              Delete from this laptop
+            </button>
+          {/if}
+        </div>
+      {/if}
     </div>
+
+    {#if confirmingDelete && footprint}
+      <div class="card-body border-t border-border pt-3">
+        <p class="alert alert-warning">
+          {draft.first_name}
+          {draft.last_name} comes off
+          {footprint.records === 1 ? 'this record' : `all ${footprint.records} records they are on`}{footprint.grades >
+          0
+            ? `, and ${footprint.grades} ${footprint.grades === 1 ? 'grade' : 'grades'} already entered for them go too`
+            : ''}. This cannot be undone.
+        </p>
+        <p class="hint mt-2">
+          The school server keeps its own copy of the student, along with the login they use to see
+          their grades. Only this laptop forgets them.
+        </p>
+      </div>
+    {/if}
   </form>
 </dialog>
 
@@ -340,6 +512,13 @@
                   class="btn btn-sm btn-ghost px-1.5"
                 >
                   &darr;
+                </button>
+                <button
+                  type="button"
+                  onclick={() => startEdit(row.student_id)}
+                  class="btn btn-sm btn-ghost"
+                >
+                  Edit
                 </button>
                 <button
                   type="button"

@@ -90,6 +90,29 @@ export function updateStudent(id: number, input: StudentInput): Promise<number> 
 }
 
 /**
+ * What deleting a student would take with them.
+ *
+ * `students` cascades to `enrollments` and on again to `period_grades`, so a
+ * delete is never one row. The instructor is looking at one class record and
+ * cannot be expected to remember the others the student is on, so the
+ * confirmation counts them rather than asking them to.
+ */
+export async function studentFootprint(
+  id: number
+): Promise<{ records: number; grades: number }> {
+  const found = await row<{ records: number; grades: number }>(
+    `SELECT (SELECT COUNT(*) FROM enrollments WHERE student_id = $1) AS records,
+            (SELECT COUNT(*)
+               FROM period_grades g
+               JOIN enrollments e ON e.id = g.enrollment_id
+              WHERE e.student_id = $2) AS grades`,
+    [id, id]
+  )
+
+  return found ?? { records: 0, grades: 0 }
+}
+
+/**
  * Removing a student removes them from this instructor's class records. The
  * server keeps its own student row, which other instructors point at and which
  * carries the student's portal login.
