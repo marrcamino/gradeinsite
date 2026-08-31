@@ -1,5 +1,8 @@
 <script lang="ts">
   import ClaimAccount from './lib/ClaimAccount.svelte'
+  import CourseDetail from './lib/CourseDetail.svelte'
+  import CourseList from './lib/CourseList.svelte'
+  import PortalHeader from './lib/PortalHeader.svelte'
   import SignIn from './lib/SignIn.svelte'
   import { session } from './lib/session.svelte'
 
@@ -16,6 +19,9 @@
 
   /** Carried from the sign-in form, so the ID is not typed twice. */
   let claiming = $state('')
+
+  /** Which course is open, or null for the list. */
+  let openCourse = $state<number | null>(null)
 
   // Ask the server whether this browser already holds a session, before the
   // first screen paints - otherwise a returning student sees the sign-in form
@@ -41,19 +47,15 @@
     <SignIn onclaim={toClaim} />
   {/if}
 {:else}
-  <!-- Signed in. The course list and the grade detail screens land here next. -->
-  <main class="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center gap-4 p-8">
-    <h1 class="text-2xl font-bold tracking-tight">
-      Welcome, {session.current?.first_name}
-    </h1>
-    <p class="text-sm muted">
-      {session.current?.student_no} · {session.current?.program}
-      {#if session.current?.year_level}
-        · Year {session.current.year_level}
-      {/if}
-    </p>
-    <div>
-      <button class="btn btn-secondary" onclick={() => session.signOut()}>Sign out</button>
-    </div>
-  </main>
+  <PortalHeader />
+
+  {#if openCourse === null}
+    <CourseList onopen={(recordId) => (openCourse = recordId)} />
+  {:else}
+    <!-- Keyed so opening a different course rebuilds the screen and refetches,
+         rather than showing the previous course's grades while it loads. -->
+    {#key openCourse}
+      <CourseDetail recordId={openCourse} onback={() => (openCourse = null)} />
+    {/key}
+  {/if}
 {/if}
