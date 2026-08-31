@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SyncButton from './SyncButton.svelte'
   import { session } from '$lib/session.svelte'
 
   // The bar every signed-in screen sits under. It exists mostly to keep the
@@ -22,6 +23,7 @@
             offline
           </span>
         {/if}
+        <SyncButton />
       {/if}
       <button type="button" onclick={() => session.signOut()} class="btn btn-sm btn-ghost">
         Sign out
