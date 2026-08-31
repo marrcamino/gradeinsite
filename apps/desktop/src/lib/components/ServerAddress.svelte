@@ -7,6 +7,12 @@
   // moving the server meant rebuilding it; here it is a row in the database and
   // a form the instructor can reach without signing in first — which they have
   // to be able to do, since signing in is what needs the address.
+  //
+  // `onchecked` lets a screen that shows its own connection line hear the
+  // result of a test, so the two never disagree. The sign-in screen passes
+  // nothing and just reads the message below the button.
+
+  let { onchecked }: { onchecked?: (up: boolean) => void } = $props()
 
   let endpoint = $state<ServerEndpoint | null>(null)
   let checking = $state(false)
@@ -30,8 +36,12 @@
     await save()
     checking = true
     result = null
-    result = (await reachable()) ? 'up' : 'down'
+
+    const up = await reachable()
+
+    result = up ? 'up' : 'down'
     checking = false
+    onchecked?.(up)
   }
 
   load()

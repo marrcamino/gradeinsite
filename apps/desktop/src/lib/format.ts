@@ -19,6 +19,28 @@ export function yearLevelName(level: number): string {
   return `${ORDINALS[level] ?? level} Year`
 }
 
+/**
+ * A time the database wrote, in the instructor's own clock.
+ *
+ * SQLite stores these as `strftime('%Y-%m-%d %H:%M:%f','now')`, which is UTC
+ * written with a space instead of a `T` and with no zone on the end. JavaScript
+ * reads a string in that shape as local time, so on a laptop in Manila a sync
+ * from a moment ago would be shown as eight hours old. Putting the `T` and the
+ * `Z` back is what makes it read as the instant it actually is.
+ */
+export function whenLocal(value: string | null | undefined): string {
+  if (!value) {
+    return ''
+  }
+
+  const at = new Date(`${value.replace(' ', 'T')}Z`)
+  if (Number.isNaN(at.getTime())) {
+    return ''
+  }
+
+  return at.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+}
+
 /** "Dela Pena, Jose R." — how a name is written on a class record. */
 export function studentName(student: {
   last_name: string

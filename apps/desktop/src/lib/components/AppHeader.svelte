@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Settings from './Settings.svelte'
   import SyncButton from './SyncButton.svelte'
   import { session } from '$lib/session.svelte'
 
@@ -24,6 +25,7 @@
           </span>
         {/if}
         <SyncButton />
+        <Settings />
       {/if}
       <button type="button" onclick={() => session.signOut()} class="btn btn-sm btn-ghost">
         Sign out
