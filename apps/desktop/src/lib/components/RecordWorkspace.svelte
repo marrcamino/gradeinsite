@@ -10,6 +10,7 @@
   import { emptyLayout, ensureColumns, sameLayout } from '$lib/grades'
   import { schoolYear, termName, yearLevelName } from '$lib/format'
   import SheetShelf from '$lib/components/SheetShelf.svelte'
+  import GpaSheet from '$lib/components/sheets/GpaSheet.svelte'
   import InputSheet from '$lib/components/sheets/InputSheet.svelte'
   import PeriodSheet from '$lib/components/sheets/PeriodSheet.svelte'
   import type { Shelf } from '$lib/tabs.svelte'
@@ -107,8 +108,21 @@
     return periods.find((period) => period === name) ?? null
   }
 
-  /** A grading period sheet is wider than the window, so it gets the whole of it. */
-  const wide = $derived(periodOf(shelf) !== null)
+  /**
+   * A grading period sheet is wider than the window, so it gets the whole of
+   * it. So is the GPA sheet once a record grades more than a period or two.
+   */
+  const wide = $derived(periodOf(shelf) !== null || shelf === 'gpa')
+
+  // Marks are entered on the period sheets, which write straight to the
+  // database; the grades held here were read when the record was opened. The
+  // GPA sheet only reads them back, so it re-reads on the way in rather than
+  // carrying a refresh button the way 2024 did.
+  $effect(() => {
+    if (shelf === 'gpa') {
+      void loadRows()
+    }
+  })
 
   // A period whose weight is dropped to 0 takes its sheet off the shelf with
   // it. If that was the sheet on show, the tab would be left pointing at
@@ -128,30 +142,32 @@
   <p class="alert alert-error m-6">{error}</p>
 {:else}
   <div class="flex min-h-0 flex-1 flex-col">
-    <div class="mx-auto w-full max-w-5xl shrink-0 px-6 pt-5">
-      <div class="flex flex-wrap items-end gap-3">
-        <div class="mr-auto">
-          <h1 class="text-lg font-semibold tracking-tight">
-            {record.course_code}
-            <span class="muted font-normal">— {record.course_name}</span>
-          </h1>
-          <p class="hint mt-1">
-            {record.program}
-            {yearLevelName(record.year_level)} · AY {schoolYear(record)} · {termName(record.term)}
-            {#if record.schedule}· {record.schedule}{/if}
-          </p>
+    {#if shelf === 'input'}
+      <div class="mx-auto w-full max-w-5xl shrink-0 px-6 pt-5">
+        <div class="flex flex-wrap items-end gap-3">
+          <div class="mr-auto">
+            <h1 class="text-lg font-semibold tracking-tight">
+              {record.course_code}
+              <span class="muted font-normal">— {record.course_name}</span>
+            </h1>
+            <p class="hint mt-1">
+              {record.program}
+              {yearLevelName(record.year_level)} · AY {schoolYear(record)} · {termName(record.term)}
+              {#if record.schedule}· {record.schedule}{/if}
+            </p>
+          </div>
+
+          {#if saved}
+            <span class="badge badge-success">Saved</span>
+          {/if}
+          <a href="/records/edit?id={record.id}" class="btn btn-sm btn-outline">Edit record</a>
         </div>
 
-        {#if saved}
-          <span class="badge badge-success">Saved</span>
+        {#if error}
+          <p class="alert alert-error mt-4">{error}</p>
         {/if}
-        <a href="/records/edit?id={record.id}" class="btn btn-sm btn-outline">Edit record</a>
       </div>
-
-      {#if error}
-        <p class="alert alert-error mt-4">{error}</p>
-      {/if}
-    </div>
+    {/if}
 
     <!-- A grading period sheet does its own scrolling, in both directions, so
          the page must not also scroll underneath it: two nested scrollers would
@@ -159,7 +175,9 @@
          which is the thing being fixed. Every other sheet is an ordinary
          document and scrolls the page as usual. -->
     <div class="min-h-0 flex-1 {wide ? 'overflow-hidden' : 'overflow-auto'}">
-      <div class={wide ? 'flex h-full flex-col px-6 pt-5 pb-3' : 'mx-auto w-full max-w-5xl px-6 py-5'}>
+      <div
+        class={wide ? 'flex h-full flex-col px-6 pt-5 pb-3' : 'mx-auto w-full max-w-5xl px-6 py-5'}
+      >
         {#if periods.length === 0 && shelf !== 'input'}
           <div class="card card-body">
             <p class="text-sm">This record has no grading scheme yet.</p>
@@ -176,10 +194,7 @@
         {:else if shelf === 'input'}
           <InputSheet {record} {rows} onchange={loadRows} />
         {:else if shelf === 'gpa'}
-          <p class="hint">
-            The GPA sheet gathers every period grade into a final average. It is built once marks
-            can be entered.
-          </p>
+          <GpaSheet {record} {rows} {grades} />
         {:else if shelf === 'print'}
           <p class="hint">
             The printed class record comes after the GPA sheet, since it is the same figures on

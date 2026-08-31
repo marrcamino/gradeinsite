@@ -269,6 +269,15 @@ export function periodRating(
   return { rating: unset.length > 0 ? null : round2(rating), unset }
 }
 
+/**
+ * What one period contributes to the final average: its rating, cut down to
+ * the weight the record gives that period. The GPA sheet prints this beside
+ * each rating, so it is a function rather than a line inside the total.
+ */
+export function weightedShare(record: ClassRecord, period: Period, rating: number): number {
+  return round2((rating * periodWeight(record, period)) / 100)
+}
+
 export interface FinalGrade {
   /** The weighted total over the active periods. Null if the record grades none. */
   grade: number | null
@@ -299,7 +308,7 @@ export function finalGrade(record: ClassRecord, ratings: Map<Period, number | nu
     if (rating === null) {
       missing.push(period)
     } else {
-      total += round2((rating * periodWeight(record, period)) / 100)
+      total += weightedShare(record, period, rating)
     }
   }
 
@@ -349,4 +358,40 @@ export function equivalentGrade(average: number): number | null {
  */
 export function remarksFor(average: number): Remark {
   return average <= 75 ? 'FAILED' : 'PASSED'
+}
+
+export interface FinalStanding {
+  /** The rating in each period the record grades, or null where none is in yet. */
+  ratings: Map<Period, number | null>
+  /** The weighted average. Zero-based while periods are missing, never null. */
+  average: number
+  /** Active periods with no rating yet — while any remain, the average is partial. */
+  missing: Period[]
+  equivalent: number | null
+  remarks: Remark
+}
+
+/**
+ * Where one student stands: their periods, their average, and what that
+ * average earns them.
+ *
+ * The GPA sheet and the printed record show the same three figures, so they
+ * ask the same function for them rather than each adding up the periods its
+ * own way — that divergence is how the 2024 code ended up with two spellings
+ * of the final average that had to be kept in step by hand.
+ */
+export function finalStanding(
+  record: ClassRecord,
+  ratings: Map<Period, number | null>
+): FinalStanding {
+  const { grade, missing } = finalGrade(record, ratings)
+  const average = grade ?? 0
+
+  return {
+    ratings,
+    average,
+    missing,
+    equivalent: equivalentGrade(average),
+    remarks: remarksFor(average),
+  }
 }
