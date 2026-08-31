@@ -17,7 +17,7 @@
   /**
    * The Input sheet: who is on this class record.
    *
-   * A student exists once on the laptop and is put on a sheet by enrolling
+   * A student exists once on the computer and is put on a sheet by enrolling
    * them. 2024 copied the name and program into a table made for this one
    * record, so correcting a spelling meant finding every copy of it. Here the
    * correction is made once, on the student, and every record showing them
@@ -26,9 +26,9 @@
    * Two different removals live on this sheet, and the wording is what keeps
    * them apart. "Remove" on a row takes the student off THIS record and is the
    * ordinary thing: a student who dropped the subject. "Delete from this
-   * laptop" is inside the student's own details, because that is where you can
-   * see whose details you are about to destroy, and it says how many records
-   * and grades go with them.
+   * computer" is inside the student's own details, because that is where you
+   * can see whose details you are about to destroy, and it says how many
+   * records and grades go with them.
    */
 
   let {
@@ -80,7 +80,7 @@
   async function startEdit(studentId: number) {
     const student = await getStudent(studentId)
     if (!student) {
-      error = 'That student is no longer on this laptop.'
+      error = 'That student is no longer on this computer.'
       return
     }
 
@@ -179,7 +179,7 @@
     if (existing && existing.id !== editing) {
       error = rows.some((row) => row.student_id === existing.id)
         ? `${existing.student_no} is already on this record, as ${studentName(existing)}.`
-        : `${existing.student_no} is already on this laptop, as ${studentName(existing)}. Close this and search for them instead.`
+        : `${existing.student_no} is already on this computer, as ${studentName(existing)}. Close this and search for them instead.`
       return
     }
 
@@ -213,7 +213,7 @@
   }
 
   /**
-   * Delete the student from this laptop entirely.
+   * Delete the student from this computer entirely.
    *
    * Not the same thing as the "Remove" on a row, and the only place the two
    * could be confused is here, which is why this one is behind the student's
@@ -273,7 +273,7 @@
     />
 
     {#if available.length === 0}
-      <p class="hint mt-2">Every student on this laptop is already on this record.</p>
+      <p class="hint mt-2">Every student on this computer is already on this record.</p>
     {:else if matches.length === 0}
       <p class="hint mt-2">Nobody here matches &ldquo;{search}&rdquo;.</p>
     {:else}
@@ -306,12 +306,12 @@
 <dialog bind:this={dialog} onclose={reset} class="dialog" aria-labelledby="new-student-title">
   <div class="card-header">
     {#if editing === null}
-      <h3 id="new-student-title" class="card-title">A student who is not on this laptop yet</h3>
+      <h3 id="new-student-title" class="card-title">A student who is not on this computer yet</h3>
       <p class="hint">They are created once here, then put on {record.course_code}.</p>
     {:else}
       <h3 id="new-student-title" class="card-title">Student details</h3>
       <p class="hint">
-        A student is held once on this laptop, so a correction here shows on every record they
+        A student is held once on this computer, so a correction here shows on every record they
         are on{footprint && footprint.records > 1 ? ` — ${footprint.records} of them` : ''}.
       </p>
     {/if}
@@ -424,7 +424,7 @@
               onclick={() => (confirmingDelete = true)}
               class="btn btn-sm btn-ghost text-destructive"
             >
-              Delete from this laptop
+              Delete from this computer
             </button>
           {/if}
         </div>
@@ -443,7 +443,7 @@
         </p>
         <p class="hint mt-2">
           The school server keeps its own copy of the student, along with the login they use to see
-          their grades. Only this laptop forgets them.
+          their grades. Only this computer forgets them.
         </p>
       </div>
     {/if}

@@ -10,8 +10,8 @@
   let stage = $state<'server' | 'local' | null>(null)
   let showServer = $state(false)
 
-  // Offer back whoever signed in last: on a shared laptop that is nearly always
-  // the person about to sign in again.
+  // Offer back whoever signed in last: on a shared computer that is nearly
+  // always the person about to sign in again.
   session.remembered().then((account) => {
     if (account.username && !username) {
       username = account.username
@@ -67,7 +67,7 @@
       {#if !busy}
         Sign in
       {:else if stage === 'local'}
-        Checking this laptop…
+        Checking this computer…
       {:else}
         Asking the server…
       {/if}

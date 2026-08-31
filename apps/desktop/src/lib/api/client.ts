@@ -16,7 +16,7 @@ import { endpointUrl, getEndpoint } from '$lib/db'
  * does not need a new build.
  */
 
-/** Long enough for a slow laptop on school wi-fi, short enough to give up. */
+/** Long enough for a slow computer on school wi-fi, short enough to give up. */
 const TIMEOUT_MS = 8000
 
 /**

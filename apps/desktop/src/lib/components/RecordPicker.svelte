@@ -5,8 +5,8 @@
   import { tabs } from '$lib/tabs.svelte'
 
   /**
-   * Every course this laptop holds a record for, offered to a tab that has not
-   * picked one yet — and to an empty window, which is the same thing.
+   * Every course this computer holds a record for, offered to a tab that has
+   * not picked one yet — and to an empty window, which is the same thing.
    *
    * In 2024 opening a record meant searching a runtime-created table by name,
    * and the list only existed on the server. Here the rows are local, so the
@@ -71,10 +71,10 @@
         {#if loading}
           Opening the local database…
         {:else if records.length === 0}
-          Nothing on this laptop yet.
+          Nothing on this computer yet.
         {:else}
           {records.length}
-          {records.length === 1 ? 'record' : 'records'} on this laptop.
+          {records.length === 1 ? 'record' : 'records'} on this computer.
         {/if}
       </p>
     </div>
@@ -95,7 +95,7 @@
       <p class="text-sm">A class record is one course, for one term.</p>
       <p class="hint mt-1">
         Create one and it is saved here first. It is pushed to the school server the next time
-        this laptop is on the network, so none of this needs the wi-fi to work.
+        this computer is on the network, so none of this needs the wi-fi to work.
       </p>
     </div>
   {:else if !loading && matches.length === 0}

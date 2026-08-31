@@ -68,7 +68,7 @@ export interface RawScores {
   me: number | null
 }
 
-/** A program the school offers. Local to this laptop; never synced. */
+/** A program the school offers. Local to this computer; never synced. */
 export interface Program {
   id: number
   pgname: string

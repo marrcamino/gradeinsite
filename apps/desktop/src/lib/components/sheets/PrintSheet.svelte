@@ -82,7 +82,7 @@
    * The names under the signature lines.
    *
    * The academic dean and the registrar are the same two people on every record
-   * this laptop prints, so they are kept in `localStorage`, which is how 2024
+   * this computer prints, so they are kept in `localStorage`, which is how 2024
    * held them too — typed onto the page and remembered.
    *
    * The dean who attests is not one of those. A class record is signed by the

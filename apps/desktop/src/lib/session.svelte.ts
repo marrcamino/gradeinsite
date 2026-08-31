@@ -9,7 +9,7 @@ import type { InstructorAccount } from '$lib/db'
  *
  * Signing in is required once per launch even though the account is cached: the
  * cache exists so the app works without the server, not so it opens straight
- * into someone's records on a laptop left on a desk. It is not required again
+ * into someone's records on a computer left on a desk. It is not required again
  * for a reload, though — a reload is the same run of the app, and losing the
  * screen you were on because the webview restarted is a bug, not a lock.
  *
@@ -20,7 +20,7 @@ import type { InstructorAccount } from '$lib/db'
  *               so that next time it can do the same check itself.
  *   * offline — the app checks the password against that stored hash. Only the
  *               account that last signed in on the network can get in this way,
- *               which is the instructor whose records are on the laptop anyway.
+ *               which is the instructor whose records are on it anyway.
  */
 
 /**
@@ -212,7 +212,7 @@ class SessionStore {
       return {
         ok: false,
         message:
-          'The server cannot be reached, and nobody has signed in on this laptop yet. ' +
+          'The server cannot be reached, and nobody has signed in on this computer yet. ' +
           'Connect to the school network once to set the account up.',
       }
     }
@@ -220,7 +220,7 @@ class SessionStore {
     if (account.username !== username) {
       return {
         ok: false,
-        message: `The server cannot be reached. Only ${account.username} can sign in offline on this laptop.`,
+        message: `The server cannot be reached. Only ${account.username} can sign in offline on this computer.`,
       }
     }
 
@@ -242,7 +242,7 @@ class SessionStore {
       firstName: account.first_name ?? '',
       online: false,
     }
-    // The password was checked against this laptop's own hash rather than the
+    // The password was checked against this computer's own hash rather than the
     // server's, but it is the same password the server will ask for when the
     // wi-fi comes back, so the sync can use it without a prompt.
     this.#password = password
@@ -265,7 +265,7 @@ class SessionStore {
   }
 
   /**
-   * Forget the account entirely. The records stay: they belong to the laptop,
+   * Forget the account entirely. The records stay: they belong to the computer,
    * and the next instructor to sign in on the network gets their own.
    */
   async forget() {

@@ -11,11 +11,11 @@
 -- This is the same table 2024 had, with the same three columns. It never
 -- reached the server there and it does not here either, which is why there is
 -- no matching MySQL migration: a program is a fact about the school, the same
--- on every laptop, and nothing on the server reads it. The student portal shows
--- a student the grades for their own courses and never names a program's dean.
--- It sits alongside `server_endpoint` and `sync_outbox` as a table this laptop
--- keeps to itself, and it has no `server_id` and no outbox trigger for the same
--- reason.
+-- on every computer, and nothing on the server reads it. The student portal
+-- shows a student the grades for their own courses and never names a program's
+-- dean. It sits alongside `server_endpoint` and `sync_outbox` as a table this
+-- computer keeps to itself, and it has no `server_id` and no outbox trigger for
+-- the same reason.
 --
 -- `dean` is here because the printed class record is signed by the dean OF THAT
 -- PROGRAM. 2024 looked the name up from this table by the record's program, so

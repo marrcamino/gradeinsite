@@ -24,7 +24,7 @@ export function yearLevelName(level: number): string {
  *
  * SQLite stores these as `strftime('%Y-%m-%d %H:%M:%f','now')`, which is UTC
  * written with a space instead of a `T` and with no zone on the end. JavaScript
- * reads a string in that shape as local time, so on a laptop in Manila a sync
+ * reads a string in that shape as local time, so on a computer in Manila a sync
  * from a moment ago would be shown as eight hours old. Putting the `T` and the
  * `Z` back is what makes it read as the instant it actually is.
  */

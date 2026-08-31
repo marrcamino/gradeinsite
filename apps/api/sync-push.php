@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Drain the desktop app's outbox onto the server.
  *
- * The laptop works offline and queues every change in `sync_outbox`. When it
+ * The computer works offline and queues every change in `sync_outbox`. When it
  * can reach the school server it posts the queue here, in the order it was
  * queued, and deletes each entry this endpoint confirms.
  *
@@ -176,7 +176,7 @@ function upsert_student(PDO $pdo, array $p): int
 }
 
 /**
- * A student deleted on the laptop leaves this instructor's records, not the
+ * A student deleted on the computer leaves this instructor's records, not the
  * school. The student row is shared — other instructors have their own class
  * records pointing at it, and the portal login hangs off it.
  */

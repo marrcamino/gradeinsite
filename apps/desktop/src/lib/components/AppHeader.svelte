@@ -5,7 +5,7 @@
   import { session } from '$lib/session.svelte'
 
   // The bar every signed-in screen sits under. It exists mostly to keep the
-  // instructor's name and the offline badge in one place: whether the laptop
+  // instructor's name and the offline badge in one place: whether the computer
   // reached the server is the thing that changes what the app can do, so it is
   // on screen rather than hidden behind a menu.
   //
@@ -21,7 +21,7 @@
       {#if session.current}
         <span class="hint">{session.displayName || session.current.username}</span>
         {#if !session.current.online}
-          <span class="badge badge-warning" title="Signed in against this laptop's cached account">
+          <span class="badge badge-warning" title="Signed in against this computer's cached account">
             offline
           </span>
         {/if}

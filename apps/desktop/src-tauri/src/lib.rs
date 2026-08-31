@@ -1,7 +1,7 @@
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 /// The instructor's local database. tauri-plugin-sql resolves a bare filename
-/// against the app's data directory, so this is a per-user file on the laptop
+/// against the app's data directory, so this is a per-user file on the computer
 /// and never a path the app has to know about.
 const DB_URL: &str = "sqlite:gradeinsite.db";
 
@@ -10,7 +10,7 @@ const DB_URL: &str = "sqlite:gradeinsite.db";
 /// `db/migrations/` stays the single source both databases are written from.
 ///
 /// Versions are append-only. Changing the SQL of a migration that has already
-/// run does nothing to a laptop that has run it, so a change to the schema is
+/// run does nothing to a computer that has run it, so a change to the schema is
 /// always a new file and a new version here.
 fn migrations() -> Vec<Migration> {
     vec![
@@ -37,10 +37,11 @@ fn migrations() -> Vec<Migration> {
 
 /// Hash a password for the local account cache.
 ///
-/// The instructor signs in against the server when the laptop can reach it, and
-/// the app keeps a hash of the password they used so it can let them back in
-/// with no wi-fi. That hash is made here rather than fetched: the server's copy
-/// has no reason to cross a LAN with no TLS just to enable an offline sign-in.
+/// The instructor signs in against the server when the computer can reach it,
+/// and the app keeps a hash of the password they used so it can let them back
+/// in with no wi-fi. That hash is made here rather than fetched: the server's
+/// copy has no reason to cross a LAN with no TLS just to enable an offline
+/// sign-in.
 ///
 /// bcrypt, the same algorithm PHP's password_hash() uses, so the project has one
 /// answer to "how are passwords stored" instead of two.

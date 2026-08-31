@@ -30,14 +30,14 @@ gradeinsite/
 
 The desktop app keeps its own **SQLite** database, so an instructor can open it
 at home with no network and keep working. Changes made while offline are queued
-locally. When the laptop is back on the school Wi-Fi, the queue is pushed to the
-school's **MySQL** database through the PHP API.
+locally. When the computer is back on the school Wi-Fi, the queue is pushed
+to the school's **MySQL** database through the PHP API.
 
 The student web app is served by **XAMPP** from that same school server and
 reads the MySQL database directly through the PHP API.
 
 ```
-  Instructor laptop                    School server
+  Instructor computer                  School server
  ┌──────────────────┐                ┌──────────────────────┐
  │ Desktop (Tauri)  │                │ XAMPP (Apache + PHP) │
  │   SQLite         │ ── sync ────▶  │   apps/api           │

@@ -22,9 +22,9 @@
    * this reproduces them, down to the two tables' COMPONENTS / PERCENTAGE
    * headings and the upper-case row labels.
    *
-   * Every number shown here was computed on the instructor's laptop and pushed
-   * up. Nothing is worked out in the browser, so what a student reads is what
-   * is on the printed class record.
+   * Every number shown here was computed on the instructor's computer and
+   * pushed up. Nothing is worked out in the browser, so what a student reads is
+   * what is on the printed class record.
    */
 
   let { recordId, onback }: { recordId: number; onback: () => void } = $props()

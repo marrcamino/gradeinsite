@@ -2,7 +2,7 @@ import { NOW, row, run } from './connection'
 import type { InstructorAccount, ServerEndpoint } from './types'
 
 /**
- * The two single-row tables that belong to this laptop and are never synced.
+ * The two single-row tables that belong to this computer and are never synced.
  *
  * Both are seeded by the migration, so there is always a row to UPDATE and no
  * screen needs a first-run special case.
@@ -62,7 +62,7 @@ export function getStoredPasswordHash(): Promise<{ password_hash: string | null 
   )
 }
 
-/** Signing out forgets the account but keeps the records on the laptop. */
+/** Signing out forgets the account but keeps the records on the computer. */
 export function clearAccount(): Promise<number> {
   return run(
     `UPDATE instructor_account

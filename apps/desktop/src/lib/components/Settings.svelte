@@ -16,7 +16,7 @@
    * rebuilding it.
    *
    * The two lines above the form are what the sign-in screen has no way to
-   * show. Once the instructor is working, the questions are "is the laptop on
+   * show. Once the instructor is working, the questions are "is the computer on
    * the school network right now" and "how much of my work has the server
    * seen" — and the second one is why `last_sync_at` is a column rather than
    * something counted out of the outbox.

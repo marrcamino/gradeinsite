@@ -5,9 +5,9 @@
   /**
    * Setting a password for the first time.
    *
-   * A student row arrives from the instructor's laptop with no portal password
-   * on it - the desktop app has no copy of one to send. This is where the
-   * student puts one there, once.
+   * A student row arrives from the instructor's computer with no portal
+   * password on it - the desktop app has no copy of one to send. This is where
+   * the student puts one there, once.
    *
    * The last name is asked for as well as the ID number, because an ID number
    * is not a secret: it is on every class list. Without it, whoever typed a

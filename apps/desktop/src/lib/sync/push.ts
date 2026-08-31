@@ -5,10 +5,10 @@ import type { OutboxEntry } from '$lib/db'
 /**
  * Draining the outbox onto the school server.
  *
- * The laptop is the source of truth while it is off the network: every edit is
- * queued by a trigger in `sync_outbox`, and this is the one place that empties
- * the queue. Nothing is pulled back — the server holds a copy for the student
- * portal to read, so a push is the whole of the sync.
+ * The computer is the source of truth while it is off the network: every edit
+ * is queued by a trigger in `sync_outbox`, and this is the one place that
+ * empties the queue. Nothing is pulled back — the server holds a copy for the
+ * student portal to read, so a push is the whole of the sync.
  *
  * The queue is walked in the order it was written, because the payloads name
  * each other: an enrollment is identified by the class record it belongs to, so

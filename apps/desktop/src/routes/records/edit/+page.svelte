@@ -106,8 +106,8 @@
 
   async function load() {
     // The school's list, kept in Programs. Until one is added it is empty, and
-    // the field falls back to suggesting the programs already used, so a laptop
-    // that has never opened Programs is no worse off than before.
+    // the field falls back to suggesting the programs already used, so a
+    // computer that has never opened Programs is no worse off than before.
     known = await listPrograms()
 
     const existing = await listClassRecords()
@@ -121,7 +121,7 @@
 
     const record = await getClassRecord(id)
     if (!record) {
-      error = 'That class record is no longer on this laptop.'
+      error = 'That class record is no longer on this computer.'
       loading = false
       return
     }
@@ -244,9 +244,9 @@
                 {/each}
               </select>
             {:else}
-              <!-- No programs on this laptop yet, so the field stays typed and
-                   suggests the ones already in use. A dropdown with nothing in
-                   it would make a record impossible to create. -->
+              <!-- No programs on this computer yet, so the field stays typed
+                   and suggests the ones already in use. A dropdown with nothing
+                   in it would make a record impossible to create. -->
               <input
                 id="program"
                 bind:value={draft.program}

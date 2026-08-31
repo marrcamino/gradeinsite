@@ -4,8 +4,8 @@ declare(strict_types=1);
 /**
  * Sign a student out.
  *
- * Portal machines are shared — a library terminal, a laptop passed around — so
- * this clears the session data, drops the cookie and destroys the session,
+ * Portal machines are shared — a library terminal, a computer passed around —
+ * so this clears the session data, drops the cookie and destroys the session,
  * rather than only forgetting the id. Signing out has to leave nothing behind
  * for the next person at the keyboard.
  */

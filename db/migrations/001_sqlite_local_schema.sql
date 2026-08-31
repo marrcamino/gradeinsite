@@ -1,6 +1,6 @@
 -- GradeInsite — desktop local database (SQLite, via tauri-plugin-sql)
 --
--- This file lives on the instructor's laptop and is the app's only source of
+-- This file lives on the instructor's computer and is the app's only source of
 -- truth while offline. It mirrors the server schema table for table, so syncing
 -- is a row-for-row push and never a reshaping exercise.
 --
@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS "period_grades" (
 -- Outbox
 -- ---------------------------------------------------------------------------
 
--- What has changed since the laptop last reached the server. The sync drains
+-- What has changed since the computer last reached the server. The sync drains
 -- this in order; anything still here means the school server has not seen it.
 -- `payload` is the JSON body that will be posted, captured at queue time so a
 -- later local edit cannot rewrite history mid-sync.
@@ -221,8 +221,8 @@ CREATE INDEX IF NOT EXISTS "ix_outbox_queued"       ON "sync_outbox"   ("queued_
 --
 -- The payloads are the request bodies apps/api/sync-push.php expects. A class
 -- record is named by its local row id and a student by their student number,
--- because those are the only identifiers a laptop has for a row the server has
--- never seen.
+-- because those are the only identifiers a computer has for a row the server
+-- has never seen.
 --
 -- Two things the guards are for:
 --
@@ -265,9 +265,9 @@ BEGIN
   ));
 END;
 
--- A student removed on the laptop leaves this instructor's records. The server
--- keeps the student row, which is shared with other instructors and carries the
--- portal login, and drops the enrollments instead.
+-- A student removed on the computer leaves this instructor's records. The
+-- server keeps the student row, which is shared with other instructors and
+-- carries the portal login, and drops the enrollments instead.
 CREATE TRIGGER IF NOT EXISTS "tg_students_outbox_delete"
 AFTER DELETE ON "students" FOR EACH ROW
 BEGIN

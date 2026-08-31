@@ -42,7 +42,7 @@
   async function load() {
     const found = await getClassRecord(recordId)
     if (!found) {
-      error = 'That class record is no longer on this laptop.'
+      error = 'That class record is no longer on this computer.'
       loading = false
       return
     }

@@ -7,11 +7,11 @@
 
   // Sending the queue to the school server, from the one place it makes sense
   // to put it: next to the offline badge, where the instructor already looks to
-  // see whether the laptop is on the network.
+  // see whether the computer is on the network.
   //
   // The count is what makes the feature honest. Every edit queues an entry, so
   // a number sitting in the header is the plain truth about how much of the
-  // laptop's work the server has not seen — and it only reaches zero after a
+  // computer's work the server has not seen — and it only reaches zero after a
   // sync the server accepted.
   //
   // One click does it. The dialogue is not a step on the way; it opens only
@@ -144,7 +144,7 @@
   onclick={sync}
   disabled={running}
   class="btn btn-sm btn-ghost"
-  title="Send this laptop's work to the school server"
+  title="Send this computer's work to the school server"
 >
   {running ? 'Syncing…' : 'Sync'}
   {#if pending > 0 && !running}
@@ -157,10 +157,10 @@
     <h3 id="sync-title" class="card-title">Sync to the school server</h3>
     <p class="hint">
       {#if pending === 0}
-        The server has everything on this laptop.
+        The server has everything on this computer.
       {:else}
         {pending}
-        {pending === 1 ? 'change is' : 'changes are'} waiting to be sent. They stay on this laptop
+        {pending === 1 ? 'change is' : 'changes are'} waiting to be sent. They stay on this computer
         until the server confirms them, so nothing is lost by trying while the wi-fi is down.
       {/if}
     </p>
@@ -197,7 +197,7 @@
 
       {#if failures.length > 0}
         <div class="space-y-1">
-          <p class="label">Not accepted, still on this laptop</p>
+          <p class="label">Not accepted, still on this computer</p>
           <ul class="space-y-1">
             {#each failures as entry (entry.id)}
               <li class="text-xs">
