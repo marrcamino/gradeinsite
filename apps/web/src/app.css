@@ -204,10 +204,6 @@
     @apply bg-accent;
   }
 
-  .table tbody tr:last-child td {
-    @apply border-b-0;
-  }
-
   .link {
     @apply text-primary underline underline-offset-2 hover:text-primary-hover;
   }

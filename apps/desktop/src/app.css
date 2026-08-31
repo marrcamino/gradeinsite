@@ -263,10 +263,6 @@
     @apply bg-accent;
   }
 
-  .table tbody tr:last-child td {
-    @apply border-b-0;
-  }
-
   .table tbody tr:hover {
     @apply bg-muted/60;
   }
