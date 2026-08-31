@@ -26,6 +26,12 @@ fn migrations() -> Vec<Migration> {
             sql: include_str!("../../../../db/migrations/002_sqlite_class_record_outbox_guard.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 3,
+            description: "add the school's list of programs",
+            sql: include_str!("../../../../db/migrations/003_sqlite_programs.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }
 

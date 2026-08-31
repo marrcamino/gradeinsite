@@ -10,9 +10,10 @@
     describeInvalid,
     getClassRecord,
     listClassRecords,
+    listPrograms,
     updateClassRecord,
   } from '$lib/db'
-  import type { ClassRecordInput, Component, Period } from '$lib/db'
+  import type { ClassRecordInput, Component, Period, Program } from '$lib/db'
   import { session } from '$lib/session.svelte'
 
   /**
@@ -57,6 +58,28 @@
   })
 
   let programs = $state<string[]>([])
+  let known = $state<Program[]>([])
+
+  /**
+   * What the Program field offers.
+   *
+   * A record already naming a program that is not on the list keeps it, at the
+   * top: opening an old record must not quietly reassign it to whichever
+   * program happened to be first.
+   */
+  const programOptions = $derived.by(() => {
+    const options = known.map((program) => ({
+      value: program.abbv,
+      label: `${program.pgname} (${program.abbv})`,
+    }))
+
+    const current = draft.program.trim()
+    if (current && !known.some((program) => program.abbv.toLowerCase() === current.toLowerCase())) {
+      options.unshift({ value: current, label: current })
+    }
+
+    return options
+  })
   let loading = $state(true)
   let saving = $state(false)
   let error = $state('')
@@ -82,7 +105,11 @@
   }
 
   async function load() {
-    // Programs already used, so the same one is not typed three different ways.
+    // The school's list, kept in Programs. Until one is added it is empty, and
+    // the field falls back to suggesting the programs already used, so a laptop
+    // that has never opened Programs is no worse off than before.
+    known = await listPrograms()
+
     const existing = await listClassRecords()
     programs = [...new Set(existing.map((record) => record.program))].sort()
 
@@ -210,19 +237,31 @@
         <div class="card-body grid gap-4 sm:grid-cols-2">
           <div class="space-y-1">
             <label class="label" for="program">Program</label>
-            <input
-              id="program"
-              bind:value={draft.program}
-              list="programs"
-              placeholder="BSIT"
-              autocomplete="off"
-              class="input"
-            />
-            <datalist id="programs">
-              {#each programs as program (program)}
-                <option value={program}></option>
-              {/each}
-            </datalist>
+            {#if known.length > 0}
+              <select id="program" bind:value={draft.program} class="select">
+                {#each programOptions as option (option.value)}
+                  <option value={option.value}>{option.label}</option>
+                {/each}
+              </select>
+            {:else}
+              <!-- No programs on this laptop yet, so the field stays typed and
+                   suggests the ones already in use. A dropdown with nothing in
+                   it would make a record impossible to create. -->
+              <input
+                id="program"
+                bind:value={draft.program}
+                list="programs"
+                placeholder="BSIT"
+                autocomplete="off"
+                class="input"
+              />
+              <datalist id="programs">
+                {#each programs as program (program)}
+                  <option value={program}></option>
+                {/each}
+              </datalist>
+              <p class="hint">Add the school's programs under Programs to pick from a list.</p>
+            {/if}
           </div>
 
           <div class="space-y-1">

@@ -68,6 +68,16 @@ export interface RawScores {
   me: number | null
 }
 
+/** A program the school offers. Local to this laptop; never synced. */
+export interface Program {
+  id: number
+  pgname: string
+  abbv: string
+  dean: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface Student {
   id: number
   server_id: number | null

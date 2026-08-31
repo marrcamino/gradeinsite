@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Programs from './Programs.svelte'
   import Settings from './Settings.svelte'
   import SyncButton from './SyncButton.svelte'
   import { session } from '$lib/session.svelte'
@@ -24,6 +25,7 @@
             offline
           </span>
         {/if}
+        <Programs />
         <SyncButton />
         <Settings />
       {/if}

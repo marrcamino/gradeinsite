@@ -7,6 +7,7 @@
 
 export * from './types'
 export { db, NOW } from './connection'
+export * from './programs'
 export * from './students'
 export * from './records'
 export * from './sheet'
