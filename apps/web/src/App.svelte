@@ -1,89 +1,59 @@
-<script>
-  import svelteLogo from './assets/svelte.svg'
-  import viteLogo from './assets/vite.svg'
-  import heroImg from './assets/hero.png'
-  import Counter from './lib/Counter.svelte'
+<script lang="ts">
+  import ClaimAccount from './lib/ClaimAccount.svelte'
+  import SignIn from './lib/SignIn.svelte'
+  import { session } from './lib/session.svelte'
+
+  /**
+   * The portal, in one component.
+   *
+   * There is no router, on purpose. Client-side history routing would need an
+   * Apache rewrite rule to survive a refresh, and the deployment has to stay a
+   * plain folder copy into htdocs - so which screen is showing is a variable,
+   * not a URL.
+   */
+
+  let view = $state<'signin' | 'claim'>('signin')
+
+  /** Carried from the sign-in form, so the ID is not typed twice. */
+  let claiming = $state('')
+
+  // Ask the server whether this browser already holds a session, before the
+  // first screen paints - otherwise a returning student sees the sign-in form
+  // flash and disappear.
+  session.restore()
+
+  function toClaim(studentNo: string) {
+    claiming = studentNo
+    view = 'claim'
+  }
 </script>
 
-<section id="center">
-  <div class="hero">
-    <img src={heroImg} class="base" width="170" height="179" alt="" />
-    <img src={svelteLogo} class="framework" alt="Svelte logo" />
-    <img src={viteLogo} class="vite" alt="Vite logo" />
+{#if session.loading}
+  <!-- The session check is a single request to the same machine, so this is
+       usually a frame or two. It exists to stop the wrong screen showing. -->
+  <div class="flex min-h-full items-center justify-center">
+    <p class="text-sm muted">Loading…</p>
   </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/App.svelte</code> and save to test <code>HMR</code></p>
-  </div>
-  <Counter />
-</section>
-
-<div class="ticks"></div>
-
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true">
-      <use href="/icons.svg#documentation-icon"></use>
-    </svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank" rel="noreferrer">
-          <img class="logo" src={viteLogo} alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://svelte.dev/" target="_blank" rel="noreferrer">
-          <img class="button-icon" src={svelteLogo} alt="" />
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true">
-      <use href="/icons.svg#social-icon"></use>
-    </svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li>
-        <a href="https://github.com/vitejs/vite" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#github-icon"></use>
-          </svg>
-          GitHub
-        </a>
-      </li>
-      <li>
-        <a href="https://chat.vite.dev/" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#discord-icon"></use>
-          </svg>
-          Discord
-        </a>
-      </li>
-      <li>
-        <a href="https://x.com/vite_js" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#x-icon"></use>
-          </svg>
-          X.com
-        </a>
-      </li>
-      <li>
-        <a href="https://bsky.app/profile/vite.dev" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#bluesky-icon"></use>
-          </svg>
-          Bluesky
-        </a>
-      </li>
-    </ul>
-  </div>
-</section>
-
-<div class="ticks"></div>
-<section id="spacer"></section>
+{:else if !session.signedIn}
+  {#if view === 'claim'}
+    <ClaimAccount studentNo={claiming} onback={() => (view = 'signin')} />
+  {:else}
+    <SignIn onclaim={toClaim} />
+  {/if}
+{:else}
+  <!-- Signed in. The course list and the grade detail screens land here next. -->
+  <main class="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center gap-4 p-8">
+    <h1 class="text-2xl font-bold tracking-tight">
+      Welcome, {session.current?.first_name}
+    </h1>
+    <p class="text-sm muted">
+      {session.current?.student_no} · {session.current?.program}
+      {#if session.current?.year_level}
+        · Year {session.current.year_level}
+      {/if}
+    </p>
+    <div>
+      <button class="btn btn-secondary" onclick={() => session.signOut()}>Sign out</button>
+    </div>
+  </main>
+{/if}
