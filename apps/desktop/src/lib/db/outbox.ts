@@ -1,5 +1,5 @@
-import { decodeJson, row, rows, run } from './connection'
-import type { OutboxEntry } from './types'
+import { NOW, decodeJson, row, rows, run } from './connection'
+import type { OutboxEntry, SyncEntity } from './types'
 
 /**
  * The queue of changes the school server has not seen.
@@ -28,14 +28,20 @@ export async function pendingCount(): Promise<number> {
  *
  * Order matters: a class record has to reach the server before the enrollments
  * that name it, and the queue is already in the order the edits happened.
+ *
+ * `afterId` is how one push walks the whole queue. A refused entry stays where
+ * it is, so a loop that always asked for the oldest batch would hand the server
+ * the same rejection forever; carrying on past the last id seen means a run
+ * visits every entry once and stops.
  */
-export async function takePending(limit = 200): Promise<OutboxEntry[]> {
+export async function takePending(limit = 200, afterId = 0): Promise<OutboxEntry[]> {
   const found = await rows<OutboxRow>(
     `SELECT id, entity, entity_id, operation, payload, queued_at, attempts, last_error
        FROM sync_outbox
+      WHERE id > $1
       ORDER BY id
-      LIMIT $1`,
-    [limit]
+      LIMIT $2`,
+    [afterId, limit]
   )
   return found.map(hydrate)
 }
@@ -45,6 +51,41 @@ export async function dropApplied(ids: number[]): Promise<void> {
   for (const id of ids) {
     await run('DELETE FROM sync_outbox WHERE id = $1', [id])
   }
+}
+
+const SYNCED_TABLE: Record<SyncEntity, string> = {
+  student: 'students',
+  class_record: 'class_records',
+  enrollment: 'enrollments',
+  period_grade: 'period_grades',
+}
+
+/**
+ * Write the server's id back onto the local row the server just accepted.
+ *
+ * Knowing it is what lets a later screen tell a row the server has seen from
+ * one it has not. The two shapes of this statement are both careful not to
+ * queue themselves: the outbox triggers skip an UPDATE that changes
+ * `server_id` (or, on a class record, `synced_at`), and the `IS NOT` keeps a
+ * re-push of an unchanged row from touching the row at all.
+ */
+export async function markPushed(
+  entity: SyncEntity,
+  entityId: number,
+  serverId: number
+): Promise<void> {
+  if (entity === 'class_record') {
+    await run(
+      `UPDATE class_records SET server_id = $1, synced_at = ${NOW} WHERE id = $2`,
+      [serverId, entityId]
+    )
+    return
+  }
+
+  await run(
+    `UPDATE ${SYNCED_TABLE[entity]} SET server_id = $1 WHERE id = $2 AND server_id IS NOT $1`,
+    [serverId, entityId]
+  )
 }
 
 /**
