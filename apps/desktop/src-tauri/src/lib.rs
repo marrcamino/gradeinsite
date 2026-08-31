@@ -13,12 +13,20 @@ const DB_URL: &str = "sqlite:gradeinsite.db";
 /// run does nothing to a laptop that has run it, so a change to the schema is
 /// always a new file and a new version here.
 fn migrations() -> Vec<Migration> {
-    vec![Migration {
-        version: 1,
-        description: "create the local schema",
-        sql: include_str!("../../../../db/migrations/001_sqlite_local_schema.sql"),
-        kind: MigrationKind::Up,
-    }]
+    vec![
+        Migration {
+            version: 1,
+            description: "create the local schema",
+            sql: include_str!("../../../../db/migrations/001_sqlite_local_schema.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 2,
+            description: "queue a class record edit only when a column changed",
+            sql: include_str!("../../../../db/migrations/002_sqlite_class_record_outbox_guard.sql"),
+            kind: MigrationKind::Up,
+        },
+    ]
 }
 
 /// Hash a password for the local account cache.
