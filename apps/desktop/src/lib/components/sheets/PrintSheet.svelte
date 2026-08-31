@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { PERIOD_NAMES, activePeriods, periodWeight } from '$lib/db'
+  import { PERIOD_NAMES, activePeriods, listPrograms, periodWeight } from '$lib/db'
   import type { ClassRecord, Period, PeriodGrade, SheetRow } from '$lib/db'
   import { equivalentGrade, finalStanding, remarksFor, weightedShare } from '$lib/grades'
   import { schoolYear, termName, yearLevelName } from '$lib/format'
@@ -81,10 +81,16 @@
   /**
    * The names under the signature lines.
    *
-   * Kept in `localStorage` rather than the database: they are the same three
-   * people on every record this laptop prints, they never sync anywhere, and a
-   * dean's name is not part of a class record. 2024 stored the registrar and
-   * the academic dean the same way, and typed them into the page directly.
+   * The academic dean and the registrar are the same two people on every record
+   * this laptop prints, so they are kept in `localStorage`, which is how 2024
+   * held them too — typed onto the page and remembered.
+   *
+   * The dean who attests is not one of those. A class record is signed by the
+   * dean OF ITS PROGRAM, so an instructor teaching for two departments needs
+   * two different names, and 2024 looked this one up from the programs table
+   * rather than storing it with the other two. That lookup is `programDean`
+   * below; the stored value is only the fallback for a program that has no dean
+   * recorded yet.
    */
   const KEYS = { dean: 'print.dean', academic: 'print.academic', registrar: 'print.registrar' }
 
@@ -107,6 +113,23 @@
   let dean = $state(stored(KEYS.dean))
   let academic = $state(stored(KEYS.academic))
   let registrar = $state(stored(KEYS.registrar))
+
+  /**
+   * The dean of this record's program, when the school's list names one.
+   *
+   * Re-read when the record's program changes, so printing one record after
+   * another does not carry the first one's dean onto the second.
+   */
+  let programDean = $state<string | null>(null)
+
+  $effect(() => {
+    const abbv = record.program.trim().toLowerCase()
+
+    void listPrograms().then((list) => {
+      programDean =
+        list.find((program) => program.abbv.trim().toLowerCase() === abbv)?.dean?.trim() || null
+    })
+  })
 
   /**
    * The school letterhead, across the top of every printed record.
@@ -350,13 +373,25 @@
 
             <div>
               <p class="mb-6">Attested by:</p>
-              <input
-                bind:value={dean}
-                onchange={() => remember(KEYS.dean, dean)}
-                placeholder="Name"
-                aria-label="Dean"
-                class="w-56 border-0 border-b border-black/70 bg-transparent px-2 pb-0.5 text-center font-semibold uppercase focus:outline-none"
-              />
+              {#if programDean}
+                <!-- The program's own dean, as 2024 printed it: read from the
+                     school's list rather than typed onto each sheet, so two
+                     departments cannot end up with one signature. Change it
+                     under Programs. -->
+                <p
+                  class="w-56 border-b border-black/70 px-2 pb-0.5 text-center font-semibold uppercase"
+                >
+                  {programDean}
+                </p>
+              {:else}
+                <input
+                  bind:value={dean}
+                  onchange={() => remember(KEYS.dean, dean)}
+                  placeholder="Name"
+                  aria-label="Dean"
+                  class="w-56 border-0 border-b border-black/70 bg-transparent px-2 pb-0.5 text-center font-semibold uppercase focus:outline-none"
+                />
+              {/if}
               <p class="mt-1 text-center">Dean — {record.program.toUpperCase()} Department</p>
             </div>
           </div>
