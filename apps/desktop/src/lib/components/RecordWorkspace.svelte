@@ -12,6 +12,7 @@
   import SheetShelf from '$lib/components/SheetShelf.svelte'
   import GpaSheet from '$lib/components/sheets/GpaSheet.svelte'
   import InputSheet from '$lib/components/sheets/InputSheet.svelte'
+  import PrintSheet from '$lib/components/sheets/PrintSheet.svelte'
   import PeriodSheet from '$lib/components/sheets/PeriodSheet.svelte'
   import type { Shelf } from '$lib/tabs.svelte'
 
@@ -110,16 +111,17 @@
 
   /**
    * A grading period sheet is wider than the window, so it gets the whole of
-   * it. So is the GPA sheet once a record grades more than a period or two.
+   * it. So is the GPA sheet once a record grades more than a period or two, and
+   * so is a sheet of A4 laid out sideways.
    */
-  const wide = $derived(periodOf(shelf) !== null || shelf === 'gpa')
+  const wide = $derived(periodOf(shelf) !== null || shelf === 'gpa' || shelf === 'print')
 
   // Marks are entered on the period sheets, which write straight to the
   // database; the grades held here were read when the record was opened. The
-  // GPA sheet only reads them back, so it re-reads on the way in rather than
-  // carrying a refresh button the way 2024 did.
+  // GPA and PRINT sheets only read them back, so they re-read on the way in
+  // rather than carrying a refresh button the way 2024 did.
   $effect(() => {
-    if (shelf === 'gpa') {
+    if (shelf === 'gpa' || shelf === 'print') {
       void loadRows()
     }
   })
@@ -196,10 +198,7 @@
         {:else if shelf === 'gpa'}
           <GpaSheet {record} {rows} {grades} />
         {:else if shelf === 'print'}
-          <p class="hint">
-            The printed class record comes after the GPA sheet, since it is the same figures on
-            paper.
-          </p>
+          <PrintSheet {record} {rows} {grades} />
         {:else}
           {@const period = periodOf(shelf)}
           {#if period && layout[period]}

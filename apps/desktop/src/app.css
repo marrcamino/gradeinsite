@@ -366,11 +366,109 @@
     background-color: var(--sheet-me);
   }
 
+  /* The printed class record.
+
+     Everything above is a screen; this is a sheet of paper. It is sized in
+     millimetres so what is on the monitor is what comes out of the tray, and
+     it keeps black on white whatever the app's colours are, because the panel
+     reads it on paper. The `@media print` rules at the foot of this file take
+     the paper out of the app and give it the page to itself. */
+  .paper {
+    @apply mx-auto flex flex-col bg-white px-8 pt-4 pb-8 text-black shadow-lg;
+  }
+
+  .paper-portrait {
+    width: 210mm;
+    min-height: 297mm;
+  }
+
+  .paper-landscape {
+    width: 297mm;
+    min-height: 210mm;
+  }
+
+  /* The table on the paper. Same two merged header rows as the screen sheet,
+     but hairline black rules rather than the app's soft borders — a grey that
+     reads well on a monitor prints as nothing at all. */
+  .paper-table {
+    @apply w-full border-collapse text-[10px] tabular-nums;
+  }
+
+  .paper-table th,
+  .paper-table td {
+    @apply border border-black/70 px-1.5 py-1 text-center align-middle;
+  }
+
+  .paper-table th {
+    @apply bg-black/5 text-[9px] font-semibold uppercase;
+  }
+
+  .paper-name {
+    @apply text-left;
+  }
+
+  .paper-pass {
+    background: rgb(215, 241, 225);
+    @apply font-semibold;
+  }
+
+  .paper-fail {
+    background: rgb(241, 212, 212);
+    @apply font-semibold;
+  }
+
   .link {
     @apply text-primary underline underline-offset-2 hover:text-primary-hover;
   }
 
   .muted {
     @apply text-muted-foreground;
+  }
+}
+
+/* Printing.
+
+   The app is one window with tabs, a shelf and a scrolling grid in it, none of
+   which belongs on paper. Rather than hiding each of those by hand, everything
+   is hidden and the paper alone is put back — so a screen added later cannot
+   accidentally print. The paper is then lifted out of the app's flex layout and
+   given the page, which is what stops it being clipped to the height of the
+   window it was scrolling in. */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .paper,
+  .paper * {
+    visibility: visible;
+  }
+
+  .paper {
+    @apply absolute top-0 left-0 m-0 w-full p-0 shadow-none;
+    min-height: 0;
+  }
+
+  /* A paper wider than the page turns the sheet sideways on its own, so the
+     instructor picks portrait or landscape once, on screen, rather than in the
+     print dialogue as well. */
+  .paper-landscape {
+    page-break-inside: auto;
+  }
+
+  .paper-table {
+    @apply text-[9px];
+  }
+
+  .paper-table tr {
+    break-inside: avoid;
+  }
+
+  .paper-table thead {
+    display: table-header-group;
   }
 }
