@@ -422,10 +422,17 @@ if ($service) {
 if (-not $NoFirewall) {
   Write-Step "Opening port 80 to the school network"
   $ruleName = 'GradeInsite (Apache 80)'
-  # Private and domain only. This is a school LAN, not the internet.
-  & netsh advfirewall firewall delete rule name="$ruleName" | Out-Null
-  & netsh advfirewall firewall add rule name="$ruleName" dir=in action=allow protocol=TCP localport=80 profile=private,domain | Out-Null
-  Write-Ok "Windows Firewall will let students reach the server"
+  # Deleting first makes this repeatable; there is nothing to delete the first
+  # time, so only the add is worth checking.
+  & netsh advfirewall firewall delete rule name="$ruleName" 2>&1 | Out-Null
+  $fw = & netsh advfirewall firewall add rule name="$ruleName" dir=in action=allow protocol=TCP localport=80 profile=private,domain 2>&1
+  if ($LASTEXITCODE -eq 0) {
+    Write-Ok "Windows Firewall will let students reach the server"
+  } else {
+    # Not fatal: the server works, students just cannot reach it yet.
+    Write-Warn2 "Could not add the firewall rule: $fw"
+    Write-Warn2 "Students may not reach this computer until port 80 is allowed."
+  }
 }
 
 # --- Does it work? ----------------------------------------------------------
