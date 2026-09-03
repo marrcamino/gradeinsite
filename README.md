@@ -19,7 +19,6 @@ gradeinsite/
 │   │   └── src-tauri/   Rust backend, local SQLite
 │   ├── web/         Vite + Svelte 5 SPA (students), served by XAMPP
 │   └── api/         PHP endpoints backed by MySQL
-├── packages/        Shared TypeScript (grading logic, types)
 ├── db/
 │   ├── migrations/  Current schemas
 │   └── legacy-2024/ Original schemas, kept for reference
