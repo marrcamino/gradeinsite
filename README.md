@@ -100,8 +100,10 @@ the quickest way to get a working dev server:
 ```
 
 It applies `db/migrations/*_mysql_*.sql`, creates the `gradeinsite` MySQL
-account, and writes `apps/api/config.local.php` pointing at it. Run it again
-after adding a migration; it applies only what has not run yet.
+account, and deploys the API into `htdocs/gradeinsite/api/` with a
+`config.local.php` pointing at it — from a checkout it deploys the same way it
+would from a release, so what you develop against is what a school runs. Run it
+again after adding a migration; it applies only what has not run yet.
 
 To do it by hand instead, run the two migrations as root in MySQL Workbench, in
 order. Note that `002_mysql_app_user.sql` contains a literal `CHANGE_ME` where
