@@ -126,7 +126,50 @@ server. Signing in afterwards does not.
 
 ## Deploying to the school server
 
-Build the web app and copy it, together with the API, into XAMPP's `htdocs`:
+A release has two halves, because two different machines are being set up:
+
+| Artifact | Goes on | What it is |
+| --- | --- | --- |
+| `GradeInsite_x.y.z_x64-setup.exe` | each instructor's computer | the desktop app |
+| `GradeInsite-Server-x.y.z.zip` | the one school-room server | the portal, the API and the migrations |
+
+Both are built by `.github/workflows/release.yml` when a `v*` tag is pushed.
+
+### The server, in one step
+
+Unzip `GradeInsite-Server-x.y.z.zip` on the server and double-click
+**Setup GradeInsite Server.bat**. It asks for administrator rights, then:
+
+- finds XAMPP and MySQL, and stops with instructions if either is missing;
+- creates the database, applying only the migrations that have not run yet;
+- generates a password for the `gradeinsite` MySQL account and writes
+  `config.local.php` with it — there is no `CHANGE_ME` to remember;
+- copies the portal into `htdocs\gradeinsite\` and the API into `api\` beside it;
+- registers Apache as a service so the server survives a power cut;
+- opens port 80 on the private and domain firewall profiles;
+- checks `health.php` and prints the address to hand out.
+
+It is safe to run again. `001_mysql_server_schema.sql` begins with `DROP TABLE`,
+so re-running it blindly would destroy every grade in the school — the installer
+consults `schema_migrations` and applies nothing twice. An existing
+`config.local.php` is read and kept rather than overwritten, so running a newer
+release upgrades the server in place.
+
+XAMPP and MySQL are found, never installed. Bundling them would add most of a
+gigabyte to the download and bring their redistribution terms along with it.
+
+### Building the package yourself
+
+```powershell
+.\scripts\package-server.ps1        # dist\GradeInsite-Server-<version>.zip
+```
+
+`config.local.php` is excluded, and the script refuses to build if one appears
+in the staged folder — a packaged release must never carry a live password.
+
+### By hand
+
+Nothing above is required. The layout the installer produces is just:
 
 ```
 htdocs/gradeinsite/
