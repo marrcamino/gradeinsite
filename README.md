@@ -89,6 +89,20 @@ npm install
 npm run dev
 ```
 
+### The server database
+
+The desktop app runs its own migrations at startup; the server has no runner, so
+`db/migrations/` is applied by hand once, as root, in MySQL Workbench:
+
+```
+001_mysql_server_schema.sql   the schema, and the gradeinsite database itself
+002_mysql_app_user.sql        the limited account the API connects as
+```
+
+Replace `CHANGE_ME` in the second file with a real password before running it.
+`apps/api/health.php` reports which tables it can see, so a half-applied
+migration shows up as a missing name rather than a confusing failure later.
+
 ### API configuration
 
 ```bash
@@ -96,8 +110,19 @@ cd apps/api
 cp config.sample.php config.local.php
 ```
 
-Then edit `config.local.php` with the MySQL credentials. It is gitignored, so
-credentials are never committed.
+Then edit `config.local.php` with the MySQL credentials — the same password the
+`gradeinsite` account was created with. It is gitignored, so credentials are
+never committed.
+
+### The first instructor account
+
+Instructors sign up from the desktop app: **Create an account** on the sign-in
+screen. The first account on a fresh server is opened without any approval,
+because there is nobody yet to ask; from then on the server asks an instructor
+who already has an account to approve each new one.
+
+Creating an account needs the school network, since the account lives on the
+server. Signing in afterwards does not.
 
 ## Deploying to the school server
 
