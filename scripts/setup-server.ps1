@@ -21,7 +21,10 @@ param(
   [string] $XamppRoot,
   # The MySQL client, if it is not on PATH or in Program Files.
   [string] $MysqlExe,
-  # The MySQL root password. Prompted for if not given.
+  # The MySQL account that may create a database and a user. Not every install
+  # leaves root reachable; a school's IT may hand over a different admin login.
+  [string] $MysqlUser = 'root',
+  # That account's password. Prompted for if not given.
   [string] $RootPassword,
   # The folder under htdocs, and so the last part of the address students type.
   [string] $SiteName = 'gradeinsite',
@@ -227,20 +230,20 @@ function New-Password {
   return ([Convert]::ToBase64String($bytes) -replace '[^A-Za-z0-9]', '').Substring(0, 24)
 }
 
-Write-Step "Signing in to MySQL as root"
+Write-Step "Signing in to MySQL as $MysqlUser"
 if (-not $RootPassword) {
   Write-Info "Needed once, to create the database and the account the API uses."
-  $secure = Read-Host -Prompt "    MySQL root password" -AsSecureString
+  $secure = Read-Host -Prompt "    MySQL $MysqlUser password" -AsSecureString
   $RootPassword = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
     [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
 }
 
-$cnf = New-MysqlDefaultsFile 'root' $RootPassword
+$cnf = New-MysqlDefaultsFile $MysqlUser $RootPassword
 try {
   Invoke-MysqlQuery 'SELECT 1' | Out-Null
 } catch {
   Remove-Item $cnf -Force -ErrorAction SilentlyContinue
-  Fail "MySQL would not accept that root password." @("Check it and run this again.")
+  Fail "MySQL would not accept that password for $MysqlUser." @("Check it and run this again.")
 }
 Write-Ok "Connected"
 
