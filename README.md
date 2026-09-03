@@ -89,30 +89,31 @@ npm install
 npm run dev
 ```
 
-### The server database
+### The server database and the API config
 
-The desktop app runs its own migrations at startup; the server has no runner, so
-`db/migrations/` is applied by hand once, as root, in MySQL Workbench:
+The desktop app runs its own migrations at startup. The server has no runner, so
+the setup script is the runner — and it works straight from a checkout, which is
+the quickest way to get a working dev server:
 
+```powershell
+.\scripts\setup-server.ps1
 ```
-001_mysql_server_schema.sql   the schema, and the gradeinsite database itself
-002_mysql_app_user.sql        the limited account the API connects as
-```
 
-Replace `CHANGE_ME` in the second file with a real password before running it.
+It applies `db/migrations/*_mysql_*.sql`, creates the `gradeinsite` MySQL
+account, and writes `apps/api/config.local.php` pointing at it. Run it again
+after adding a migration; it applies only what has not run yet.
+
+To do it by hand instead, run the two migrations as root in MySQL Workbench, in
+order. Note that `002_mysql_app_user.sql` contains a literal `CHANGE_ME` where
+the password goes and **must not be edited in place** — `tauri-plugin-sql`
+checksums migration files whole, and changing one that has already run stops the
+desktop app from starting. Substitute it on a copy, or set the password
+afterwards with `ALTER USER`. Then copy `config.sample.php` to
+`config.local.php` and fill in the same password; it is gitignored, so
+credentials are never committed.
+
 `apps/api/health.php` reports which tables it can see, so a half-applied
 migration shows up as a missing name rather than a confusing failure later.
-
-### API configuration
-
-```bash
-cd apps/api
-cp config.sample.php config.local.php
-```
-
-Then edit `config.local.php` with the MySQL credentials — the same password the
-`gradeinsite` account was created with. It is gitignored, so credentials are
-never committed.
 
 ### The first instructor account
 
