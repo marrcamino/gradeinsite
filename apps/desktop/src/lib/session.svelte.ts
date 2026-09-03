@@ -51,17 +51,42 @@ export interface Session {
   online: boolean
 }
 
-interface LoginResponse {
+/** An instructor as the server names one, in a sign-in or a registration reply. */
+interface Instructor {
+  id: number
+  username: string
+  last_name: string
+  first_name: string
+}
+
+interface InstructorResponse {
   ok: boolean
-  instructor: {
-    id: number
-    username: string
-    last_name: string
-    first_name: string
-  }
+  instructor: Instructor
 }
 
 export type SignInResult = { ok: true; session: Session } | { ok: false; message: string }
+
+/** The four things an instructor types to open an account. */
+export interface NewAccount {
+  username: string
+  password: string
+  lastName: string
+  firstName: string
+}
+
+/**
+ * Registering fails in one way the screen has to act on rather than only
+ * report. Once the school has instructors, the server will not open another
+ * account for whoever asks — an existing one has to sign the request — so a
+ * refusal for that reason asks the screen for those credentials instead of
+ * stopping.
+ */
+export type RegisterResult =
+  | { ok: true; session: Session }
+  | { ok: false; message: string; needsAuthorisation: boolean }
+
+/** The server's own minimum, said here so the form can ask for it up front. */
+export const MIN_PASSWORD_LENGTH = 8
 
 class SessionStore {
   current = $state<Session | null>(null)
@@ -164,34 +189,14 @@ class SessionStore {
     }
 
     onStage?.('server')
-    const response = await post<LoginResponse>(
+    const response = await post<InstructorResponse>(
       'instructor-login.php',
       { username: trimmed, password },
       QUICK_TIMEOUT_MS
     )
 
     if (response.ok) {
-      const instructor = response.data.instructor
-      const hash = await invoke<string>('hash_password', { password })
-
-      await saveAccount(
-        instructor.id,
-        instructor.username,
-        hash,
-        instructor.last_name,
-        instructor.first_name
-      )
-
-      this.current = {
-        serverId: instructor.id,
-        username: instructor.username,
-        lastName: instructor.last_name,
-        firstName: instructor.first_name,
-        online: true,
-      }
-      this.#password = password
-      this.remember()
-      return { ok: true, session: this.current }
+      return { ok: true, session: await this.#adopt(response.data.instructor, password) }
     }
 
     // The server answered and said no. Falling back to the cached hash here
@@ -248,6 +253,107 @@ class SessionStore {
     this.#password = password
     this.remember()
     return { ok: true, session: this.current }
+  }
+
+  /**
+   * Take on an account the server has just confirmed.
+   *
+   * Signing in and creating an account end in the same place: the server has
+   * said who this is, so the app caches the account, hashes the password for
+   * the next sign-in with no wi-fi, and holds the password for the sync.
+   */
+  async #adopt(instructor: Instructor, password: string): Promise<Session> {
+    const hash = await invoke<string>('hash_password', { password })
+
+    await saveAccount(
+      instructor.id,
+      instructor.username,
+      hash,
+      instructor.last_name,
+      instructor.first_name
+    )
+
+    this.current = {
+      serverId: instructor.id,
+      username: instructor.username,
+      lastName: instructor.last_name,
+      firstName: instructor.first_name,
+      online: true,
+    }
+    this.#password = password
+    this.remember()
+
+    return this.current
+  }
+
+  /**
+   * Open a new instructor account, and sign in as it.
+   *
+   * This only works on the school network. An account lives on the server —
+   * it is what stamps every record the computer pushes up — so there is no
+   * offline version of it the way there is for signing in.
+   *
+   * `authorisedBy` is the credentials of an instructor who already has an
+   * account. The server asks for them only once the school has instructors to
+   * ask: the very first account on a fresh server is opened without them,
+   * because there is nobody left to sign it. The screen therefore sends none
+   * to begin with and only collects them if the server says it needs them.
+   */
+  async register(
+    account: NewAccount,
+    authorisedBy?: { username: string; password: string }
+  ): Promise<RegisterResult> {
+    const username = account.username.trim()
+    const lastName = account.lastName.trim()
+    const firstName = account.firstName.trim()
+
+    if (!username || !lastName || !firstName) {
+      return {
+        ok: false,
+        message: 'Enter a username, a first name and a last name.',
+        needsAuthorisation: false,
+      }
+    }
+    if (account.password.length < MIN_PASSWORD_LENGTH) {
+      return {
+        ok: false,
+        message: `Choose a password of at least ${MIN_PASSWORD_LENGTH} characters.`,
+        needsAuthorisation: false,
+      }
+    }
+
+    const response = await post<InstructorResponse>('instructor-register.php', {
+      ...(authorisedBy ?? {}),
+      account: {
+        username,
+        password: account.password,
+        last_name: lastName,
+        first_name: firstName,
+      },
+    })
+
+    if (response.ok) {
+      return { ok: true, session: await this.#adopt(response.data.instructor, account.password) }
+    }
+
+    if (response.reason === 'offline') {
+      return {
+        ok: false,
+        message:
+          'An account is made on the school server, so this needs the school network. ' +
+          'Connect to it and try again.',
+        needsAuthorisation: false,
+      }
+    }
+
+    // 401 is the server saying this school already has instructors, so one of
+    // them has to sign the request. Everything else — a taken username, a
+    // missing name — is something to fix in the form and send again.
+    return {
+      ok: false,
+      message: response.message,
+      needsAuthorisation: response.status === 401,
+    }
   }
 
   /** The cached account, so the sign-in screen can offer the username back. */
