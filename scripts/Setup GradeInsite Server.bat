@@ -29,5 +29,11 @@ if %errorlevel% neq 0 (
 
 powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" %*
 
+REM The addresses printed above are the one thing that has to leave this
+REM window, and "Press any key to continue" does not say so.
+echo.
+echo  ---------------------------------------------------------------
+echo   Setup finished. Write down the address above before you close.
+echo  ---------------------------------------------------------------
 echo.
 pause
