@@ -36,24 +36,6 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# Registering the Apache service and writing into htdocs both need an
-# administrator. Without this check the install runs three quarters of the way
-# and then fails at the health check, which reads as a broken server rather than
-# a missing right-click. "Setup GradeInsite Server.bat" elevates for you.
-$identity  = [Security.Principal.WindowsIdentity]::GetCurrent()
-$principal = New-Object Security.Principal.WindowsPrincipal($identity)
-if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-  Write-Host ""
-  Write-Host "  This needs to run as an administrator." -ForegroundColor Red
-  Write-Host ""
-  Write-Host "  Double-click 'Setup GradeInsite Server.bat' instead -- it asks for" -ForegroundColor Yellow
-  Write-Host "  the rights and then runs this script." -ForegroundColor Yellow
-  Write-Host ""
-  Write-Host "  To run this file directly, open PowerShell with 'Run as administrator' first." -ForegroundColor Yellow
-  Write-Host ""
-  exit 1
-}
-
 # --- Saying what is happening ----------------------------------------------
 
 function Write-Step($text) { Write-Host ""; Write-Host "==> $text" -ForegroundColor Cyan }
@@ -109,6 +91,24 @@ function Resolve-Payload {
 }
 
 $payload = Resolve-Payload
+
+# Registering the Apache service and writing into htdocs both need an
+# administrator. Without this check the install runs three quarters of the way
+# and then fails at the health check, which reads as a broken server rather than
+# a missing right-click. "Setup GradeInsite Server.bat" elevates for you.
+$identity  = [Security.Principal.WindowsIdentity]::GetCurrent()
+$principal = New-Object Security.Principal.WindowsPrincipal($identity)
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+  Write-Host ""
+  Write-Host "  This needs to run as an administrator." -ForegroundColor Red
+  Write-Host ""
+  Write-Host "  Double-click 'Setup GradeInsite Server.bat' instead -- it asks for" -ForegroundColor Yellow
+  Write-Host "  the rights and then runs this script." -ForegroundColor Yellow
+  Write-Host ""
+  Write-Host "  To run this file directly, open PowerShell with 'Run as administrator' first." -ForegroundColor Yellow
+  Write-Host ""
+  exit 1
+}
 
 # --- XAMPP ------------------------------------------------------------------
 
