@@ -138,6 +138,12 @@ A release has two halves, because two different machines are being set up:
 
 Both are built by `.github/workflows/release.yml` when a `v*` tag is pushed.
 
+The desktop app bundles as an NSIS installer only. Tauri can also emit an MSI,
+but WiX's validation step runs as a 32-bit process and needs the 32-bit VBScript
+engine, which recent Windows builds no longer ship — it fails with error 2738 on
+a machine that has dropped it. NSIS needs none of that, and an installer that
+builds everywhere is worth more here than a second format nobody asked for.
+
 ### The server, in one step
 
 Unzip `GradeInsite-Server-x.y.z.zip` on the server and double-click
