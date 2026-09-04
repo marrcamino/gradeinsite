@@ -356,6 +356,63 @@ class SessionStore {
     }
   }
 
+  /**
+   * Set a new password for an instructor who has forgotten theirs.
+   *
+   * The 2024 sign-in screen carried a "Forgot password?" link that went
+   * nowhere. This is it, and it is approved the way a new account is: by a
+   * colleague who already has one, because a school network has no email to
+   * send a reset link over.
+   *
+   * On success it signs the account in. The person at the computer is the one
+   * whose password it now is, and sending them back to type it again on the
+   * screen behind would be a step for nothing.
+   */
+  async resetPassword(
+    username: string,
+    newPassword: string,
+    approvedBy: { username: string; password: string }
+  ): Promise<SignInResult> {
+    const trimmed = username.trim()
+
+    if (!trimmed) {
+      return { ok: false, message: 'Enter the username of the account to reset.' }
+    }
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      return {
+        ok: false,
+        message: `Choose a password of at least ${MIN_PASSWORD_LENGTH} characters.`,
+      }
+    }
+    if (!approvedBy.username.trim() || !approvedBy.password) {
+      return {
+        ok: false,
+        message: 'An instructor who already has an account has to approve this.',
+      }
+    }
+
+    const response = await post<InstructorResponse>('instructor-reset-password.php', {
+      username: approvedBy.username.trim(),
+      password: approvedBy.password,
+      account: { username: trimmed, password: newPassword },
+    })
+
+    if (response.ok) {
+      return { ok: true, session: await this.#adopt(response.data.instructor, newPassword) }
+    }
+
+    if (response.reason === 'offline') {
+      return {
+        ok: false,
+        message:
+          'A password is kept on the school server, so this needs the school network. ' +
+          'Connect to it and try again.',
+      }
+    }
+
+    return { ok: false, message: response.message }
+  }
+
   /** The cached account, so the sign-in screen can offer the username back. */
   async remembered(): Promise<InstructorAccount> {
     return getAccount()

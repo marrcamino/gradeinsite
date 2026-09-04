@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation'
   import CreateAccount from '$lib/components/CreateAccount.svelte'
+  import ResetPassword from '$lib/components/ResetPassword.svelte'
   import ServerAddress from '$lib/components/ServerAddress.svelte'
   import { session } from '$lib/session.svelte'
 
@@ -14,6 +15,8 @@
   // 2024 swapped the whole panel for the create-account form and put a way back
   // at the top of it, rather than opening a second window.
   let creating = $state(false)
+  // 2024 put "Forgot password?" beside the password label as a dead link.
+  let resetting = $state(false)
 
   // Offer back whoever signed in last: on a shared computer that is nearly
   // always the person about to sign in again.
@@ -48,6 +51,8 @@
 
 {#if creating}
   <CreateAccount oncancel={() => (creating = false)} />
+{:else if resetting}
+  <ResetPassword {username} oncancel={() => (resetting = false)} />
 {:else}
   <main class="mx-auto flex min-h-full max-w-sm flex-col justify-center p-8">
     <img src="/favicon.png" alt="" class="h-14 w-14" />
@@ -70,6 +75,14 @@
         autocomplete="current-password"
         class="input"
       />
+
+      <!-- Where 2024 put it: beside the password, as a link. Theirs went
+           nowhere; this one opens the screen behind it. -->
+      <div class="flex justify-end">
+        <button type="button" onclick={() => (resetting = true)} class="link text-xs">
+          Forgot password?
+        </button>
+      </div>
 
       <button type="submit" disabled={busy} class="btn btn-primary w-full">
         {#if !busy}
