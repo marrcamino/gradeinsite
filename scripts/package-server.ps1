@@ -103,7 +103,30 @@ Version $Version
 [System.IO.File]::WriteAllText((Join-Path $stage 'README.txt'), $readme, (New-Object System.Text.UTF8Encoding($false)))
 
 Write-Host "==> Compressing" -ForegroundColor Cyan
-Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip -Force
+# The entry names are written by hand, with forward slashes.
+#
+# The ZIP specification allows only forward slashes as the path separator, but
+# on Windows PowerShell both Compress-Archive and ZipFile.CreateFromDirectory
+# write backslashes — a .NET Framework behaviour that was only fixed in .NET
+# Core. Windows Explorer copes with it; 7-Zip and anything not on Windows can
+# read a backslashed entry as a filename rather than a folder, unpacking the
+# release flat into one directory. Creating each entry explicitly is the only
+# way to get this right on this runtime.
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archive = [System.IO.Compression.ZipFile]::Open($zip, 'Create')
+try {
+  foreach ($file in Get-ChildItem $stage -Recurse -File) {
+    $relative = $file.FullName.Substring($stage.Length + 1).Replace('\', '/')
+    [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+      $archive,
+      $file.FullName,
+      $relative,
+      [System.IO.Compression.CompressionLevel]::Optimal
+    ) | Out-Null
+  }
+} finally {
+  $archive.Dispose()
+}
 
 $size = [math]::Round((Get-Item $zip).Length / 1MB, 2)
 Write-Host ""
