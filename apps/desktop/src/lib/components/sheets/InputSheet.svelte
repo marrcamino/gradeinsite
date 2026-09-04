@@ -12,6 +12,9 @@
     updateStudent,
   } from '$lib/db'
   import type { ClassRecord, SheetRow, Student } from '$lib/db'
+  import { resetPortalPassword } from '$lib/api/students'
+  import { isOffline } from '$lib/api/client'
+  import { session } from '$lib/session.svelte'
   import { studentName, yearLevelName } from '$lib/format'
 
   /**
@@ -50,6 +53,16 @@
   let footprint = $state<{ records: number; grades: number } | null>(null)
   let confirmingDelete = $state(false)
   let busy = $state(false)
+
+  /**
+   * The outcome of a portal password reset, shown in the dialogue.
+   *
+   * Not a toast: the instructor has to pass the next step on to the student
+   * in person, so the sentence saying what the student must now do should
+   * stay on screen until the dialogue is closed.
+   */
+  let resetState = $state<'idle' | 'working' | 'done' | 'failed'>('idle')
+  let resetMessage = $state('')
 
   let draft = $state({
     student_no: '',
@@ -108,6 +121,50 @@
     editing = null
     footprint = null
     confirmingDelete = false
+    resetState = 'idle'
+    resetMessage = ''
+  }
+
+  /**
+   * Let this student claim their portal account again.
+   *
+   * There is no email on a school network, so a student who forgets their
+   * portal password cannot be sent a link — the instructor is the only
+   * authority available, and this is it. It clears the password rather than
+   * setting a new one, so nothing has to be read out or written down: the
+   * student sets their own on the portal with their ID number and last name.
+   *
+   * Deliberately not behind a confirmation. It is undoable in the sense that
+   * matters — the student simply claims the account again — unlike the delete
+   * below it, which is why that one asks and this one does not.
+   */
+  async function resetPortal() {
+    const credentials = session.credentials
+    if (!credentials) {
+      resetState = 'failed'
+      resetMessage = 'Sign in again so the server knows who is asking.'
+      return
+    }
+
+    resetState = 'working'
+    resetMessage = ''
+
+    const result = await resetPortalPassword(credentials, draft.student_no)
+
+    if (result.ok) {
+      resetState = 'done'
+      resetMessage = result.data.was_set
+        ? `${result.data.name} can now set a new password on the student page, using their ID number and last name.`
+        : `${result.data.name} had no password yet. They can set one on the student page, using their ID number and last name.`
+      return
+    }
+
+    resetState = 'failed'
+    // The portal password lives only on the server, so unlike the rest of this
+    // sheet there is no offline version of this to fall back on.
+    resetMessage = isOffline(result)
+      ? 'This needs the school network, because the student page password is kept on the server.'
+      : result.message
   }
 
   const matches = $derived.by(() => {
@@ -399,6 +456,18 @@
       </button>
 
       {#if editing !== null}
+        <!-- The student page password is the one thing here the server owns, so
+             this is the one button on the dialogue that needs the network. -->
+        <button
+          type="button"
+          onclick={resetPortal}
+          disabled={busy || resetState === 'working'}
+          class="btn btn-sm btn-outline"
+          title="Let this student set a new password on the student page"
+        >
+          {resetState === 'working' ? 'Resetting…' : 'Reset student page password'}
+        </button>
+
         <!-- Kept apart from the two buttons above, because it is the one thing
              on this dialogue that cannot be undone. -->
         <div class="ml-auto">
@@ -446,6 +515,15 @@
           their grades. Only this computer forgets them.
         </p>
       </div>
+    {/if}
+
+    <!-- Below the footer rather than beside the button: the sentence tells the
+         instructor what to say to the student next, so it should stay put until
+         the dialogue is closed. -->
+    {#if resetState === 'done'}
+      <p class="alert alert-success mx-4 mb-4">{resetMessage}</p>
+    {:else if resetState === 'failed'}
+      <p class="alert alert-error mx-4 mb-4">{resetMessage}</p>
     {/if}
   </form>
 </dialog>

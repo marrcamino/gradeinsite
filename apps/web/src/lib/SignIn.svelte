@@ -15,6 +15,7 @@
   let password = $state('')
   let error = $state('')
   let busy = $state(false)
+  let showHelp = $state(false)
 
   async function submit(event: SubmitEvent) {
     event.preventDefault()
@@ -63,7 +64,17 @@
     </div>
 
     <div class="space-y-1.5">
-      <label class="label" for="password">Password</label>
+      <div class="flex items-baseline justify-between">
+        <label class="label" for="password">Password</label>
+        <!-- The 2024 portal had this link here as an <a href="#"> that did
+             nothing. There is no e-mail on a school network to send a reset
+             over, so the honest answer is the one the instructor can act on:
+             they clear the password from their app and the student sets a new
+             one on the screen they already know. -->
+        <button type="button" class="link text-xs" onclick={() => (showHelp = !showHelp)}>
+          Forgot password?
+        </button>
+      </div>
       <input
         id="password"
         bind:value={password}
@@ -74,6 +85,13 @@
         class="input"
       />
     </div>
+
+    {#if showHelp}
+      <p class="alert alert-info">
+        Ask your instructor to reset it. Once they have, come back and choose
+        <strong>Set your password</strong> below — you will need your ID number and your last name.
+      </p>
+    {/if}
 
     {#if error}
       <p class="alert alert-error" role="alert">{error}</p>
