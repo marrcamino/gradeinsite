@@ -133,8 +133,19 @@ A release has two halves, because two different machines are being set up:
 
 | Artifact | Goes on | What it is |
 | --- | --- | --- |
-| `GradeInsite_x.y.z_x64-setup.exe` | each instructor's computer | the desktop app |
+| `GradeInsite_x.y.z_x64-setup.exe` | each instructor's computer | the desktop app, 5 MB |
+| `GradeInsite_x.y.z_x64-setup-offline.exe` | a computer with no internet | the same app, 255 MB |
 | `GradeInsite-Server-x.y.z.zip` | the one school-room server | the portal, the API and the migrations |
+
+Both installers give the same app, and the app itself never needs the internet
+either way — the difference is only what the *installing* computer must fetch.
+A Tauri app draws its screens with Microsoft's WebView2 runtime. Windows 11 has
+it already, and so does most of Windows 10; the 5 MB installer downloads it if
+it is missing, which a school with no internet cannot do. The offline installer
+carries the runtime with it, which is the whole of the extra 250 MB.
+
+Use the small one unless the computer has no internet and has never run an app
+built this way. If in doubt the offline one always works.
 
 Both are built by `.github/workflows/release.yml` when a `v*` tag is pushed.
 

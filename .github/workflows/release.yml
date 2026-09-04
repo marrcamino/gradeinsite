@@ -43,9 +43,20 @@ jobs:
         working-directory: apps/desktop
         run: npm ci
 
-      - name: Build the desktop app
+      # Two installers, differing only in whether the WebView2 runtime travels
+      # with them. Both produce the same filename, so each is renamed before the
+      # next build overwrites it.
+      - name: Build the desktop app (runtime included)
         working-directory: apps/desktop
-        run: npm run tauri build
+        shell: pwsh
+        run: |
+          npm run tauri build
+          $nsis = 'src-tauri/target/release/bundle/nsis'
+          Get-ChildItem "$nsis/*-setup.exe" | Rename-Item -NewName { $_.Name -replace '-setup\.exe$', '-setup-offline.exe' }
+
+      - name: Build the desktop app (standard)
+        working-directory: apps/desktop
+        run: npm run tauri build -- --config src-tauri/tauri.online.conf.json
 
       - name: Attach everything to the release
         if: startsWith(github.ref, 'refs/tags/')
