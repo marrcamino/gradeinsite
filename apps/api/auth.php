@@ -25,6 +25,15 @@ require_once __DIR__ . '/db.php';
  */
 const AUTH_DUMMY_HASH = '$2y$10$obf1gueOymKPzf3/3Ixsme0IVlNHiPYPsefP8mwhxJRETmEe9FpBa';
 
+/**
+ * The shortest password an instructor account may have.
+ *
+ * Here rather than in one endpoint because two of them set passwords now —
+ * registration and the reset — and a minimum that lives in only one of them is
+ * a minimum that drifts.
+ */
+const INSTRUCTOR_MIN_PASSWORD_LENGTH = 8;
+
 /** Reject any request that does not use the method this endpoint accepts. */
 function require_method(string $method): void
 {

@@ -23,8 +23,6 @@ require __DIR__ . '/auth.php';
 
 require_method('POST');
 
-const MIN_PASSWORD_LENGTH = 8;
-
 $in  = json_input();
 $pdo = db();
 
@@ -45,8 +43,8 @@ if ($username === '' || $lastName === '' || $firstName === '') {
 if (mb_strlen($username) > 60 || mb_strlen($lastName) > 60 || mb_strlen($firstName) > 60) {
     json_error('Username and names are limited to 60 characters.', 422);
 }
-if (strlen($password) < MIN_PASSWORD_LENGTH) {
-    json_error('The password must be at least ' . MIN_PASSWORD_LENGTH . ' characters.', 422);
+if (strlen($password) < INSTRUCTOR_MIN_PASSWORD_LENGTH) {
+    json_error('The password must be at least ' . INSTRUCTOR_MIN_PASSWORD_LENGTH . ' characters.', 422);
 }
 
 $stmt = $pdo->prepare(
